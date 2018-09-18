@@ -1,0 +1,213 @@
+' Gambas class file
+
+Private bolLoadesd As Boolean
+
+Public Sub Form_Open()
+  
+  bolLoadesd = False
+  
+  CreateControls()
+  
+End
+
+Public Sub Form_Arrange()
+  
+  bolLoadesd = True
+  
+End
+
+Private Sub CreateControls()
+  
+  Dim int As Integer
+  Dim pnl As Panel
+  Dim lbl As Label
+  
+  Dim strType As String
+  Dim txo As TextBox
+  Dim dxo As DateBox  
+  
+  Dim strTag As String
+  Dim strTit As String
+  Dim strVal As String
+  Dim strTip As String
+  
+  pnlBase.Children.Clear
+  pnlBase.Margin = True
+  
+  For int = 0 To FMain.stxMTags.Max
+    strTag = String.LCase(FMain.stxMTags[int])
+    strTit = FMain.stxMTitl[int]
+    strTip = FMain.stxMTips[int]
+    
+    strVal = FMain.stxMVals[int]
+    
+    pnl = New Panel(pnlBase)
+    With pnl
+      .Name = "pnl" & CStr(int)
+      .Height = 62
+      .Width = pnlBase.Width
+      .Arrangement = Arrange.Vertical
+      '.Margin = True
+      .Border = 1
+    End With
+    
+    lbl = New Label(pnl)
+    With lbl
+      .Name = "lbl" & CStr(int)
+      .Text = " > " & strTit
+      .Tooltip = strTip
+      .Expand = True
+    End With
+    
+    If InStr(strTag, "date")
+      strType = "DateBox"
+    Else
+      strType = "TextBox"    
+    Endif
+    
+    Select strType
+      Case "DateBox"
+        
+        dxo = New DateBox(pnl) As "MetaData"
+        With dxo
+          .Name = "dat" & CStr(int)
+          .Value = strVal
+          .Expand = True
+          .Tag = strTag
+          .Border = False
+          .Background = Color.Background
+        End With
+      Case "TextBox"
+        
+        txo = New TextBox(pnl) As "MetaData"
+        With txo
+          .Name = "txo" & CStr(int)
+          .Text = strVal
+          .Expand = True
+          .Tag = strTag
+          .Border = False
+        End With
+        
+    End Select
+  Next
+  
+End
+
+Public Sub SaveMetaData()  '' Guarda los metadatos en un archivo de texto.
+  
+  Dim int As Integer
+  Dim objPnl As Object
+  Dim objBox As Object
+  
+  Dim stxSave As New String[]
+  Dim strTag As String
+  Dim strVal As String
+  Dim intCursor As Integer
+  
+  For int = 0 To FMain.stxMTags.Max
+    
+    For Each objPnl In pnlBase.Children
+      If Object.Type(objPnl) = "Panel" Then
+        For Each objBox In objPnl.Children
+          If objPnl.Tag = "MetaData" Then
+            Select Object.Type(objPnl)
+              Case "TextBox"
+                FMain.stxMVals[int] = objBox.Text
+                Break
+              Case "DateBox", "ValueBox"
+                FMain.stxMVals[int] = CStr(objBox.Value)
+                Break
+            End Select
+          Endif
+        Next
+      Endif
+    Next
+    
+  Next
+  
+  ' stxSave.Clear
+  ' 
+  ' For int = 0 To FMain.stxMTags.Max
+  '   
+  '   strTag = FMain.stxMTags[int]
+  '   strVal = FMain.stxMVals[int]
+  '   
+  '   stxSave.Add(strTag & "\t" & strVal)
+  '   
+  ' Next
+  ' 
+  ' 
+  ' For int = 0 To FMain.stxMTags
+  ' intCursor = FMain.stxMTags.Find(stxMTags[int]) 
+  ' If intCursor > -1 Then
+  '   FMain.stxMVals[intCursor] = 
+  ' Endif
+End
+
+Public Sub btnCancel_Click()
+  
+  Me.Close
+  
+End
+
+Public Sub btnAcept_Click()
+  
+  SaveMetaData()
+  
+  Me.Close
+  
+End
+
+Public Sub MetaData_Change()
+  
+  Dim obj As Object
+  Dim int As Integer
+  Dim str As String
+  Dim intKey As Integer
+  
+  If bolLoadesd = True Then
+    obj = Last
+    
+    For int = 0 To FMain.stxMTags.Max
+      If obj.tag = FMain.stxMTags[int] Then
+        
+        Select Object.Type(obj) 
+          Case "TextBox"
+            str = GEFValidator.Chek4SQL(obj.Text)
+            intKey = int
+            Break
+            'FMain.stxMVals[int] = str
+          Case "DateBox", "ValueBox"
+            str = GEFValidator.Chek4SQL(CStr(obj.Value))
+            intKey = int
+            Break
+        End Select
+      Endif
+    Next
+    Select FMain.stxMTags[intKey]
+        
+      Case "creator", "contributor"
+        If String.Right(str) <> " " Then
+          
+          FMain.stxMVals[intKey] = GEFValidator.CapitalWords(str)
+          obj.Text = FMain.stxMVals[intKey]
+        Endif
+        
+      Case "title", "subtitle"
+        FMain.stxMVals[intKey] = GEFValidator.Capital(str)
+        obj.Text = FMain.stxMVals[intKey]
+        
+      Case "date"
+        FMain.stxMVals[intKey] = GEFUtility.TimeYear(obj.Value)
+        ' obj.Value = Date(FMain.stxMVals[intKey])
+        
+      Case Else
+        FMain.stxMVals[intKey] = str
+        obj.Text = FMain.stxMVals[intKey]
+    End Select
+    
+  Endif
+  
+  'bolLoadesd = True
+  
+End

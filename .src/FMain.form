@@ -1,0 +1,319 @@
+# Gambas Form File 3.0
+
+{ Form Form
+  MoveScaled(0,0,104,50)
+  Background = Color.Background
+  Arrangement = Arrange.Vertical
+  Spacing = True
+  { mnuFile Menu
+    Text = ("Archivo")
+    { mnuNewEPUB Menu
+      Text = ("Crear un libro electónico nuevo")
+      Picture = Picture["icon:/22/new"]
+      Shortcut = "Ctrl+N"
+    }
+    { mnuOpenEPUB Menu
+      Text = ("Abrir un libro electónico existente")
+      Picture = Picture["application-epub+zip.png"]
+      Shortcut = "Ctrl+O"
+    }
+    { mnuImportFile Menu
+      Text = ("Nuevo libro desde archivo importado")
+      Picture = Picture["icon:/22/pdf"]
+      Shortcut = "Ctrl+I"
+    }
+    { mnuSaveEPUB Menu
+      Text = ("Guardar libro electrónico")
+      Picture = Picture["icon:/22/save"]
+      Shortcut = "Ctrl+S"
+    }
+    { Menu1 Menu
+      Text = ("Guardar libro electrónico como")
+      Picture = Picture["icon:/22/save-as"]
+      Shortcut = "Ctrl+Shift+S"
+    }
+    { mnuOpenJobDirectory Menu
+      Text = ("Abrir una maqueta")
+      Picture = Picture["icon:/22/package"]
+      Shortcut = "Ctrl+P"
+    }
+    { mnuSaveModel Menu
+      Text = ("Guardar maqueta")
+      Picture = Picture["icon:/22/save"]
+      Shortcut = "Ctrl+T"
+    }
+    { mnuSaveModelAs Menu
+      Text = ("Guardar maqueta como")
+      Picture = Picture["icon:/22/save-as"]
+      Shortcut = "Ctrl+Shift+T"
+    }
+    { mnuExit Menu
+      Text = ("Salir")
+      Picture = Picture["icon:/22/quit"]
+      Shortcut = "Ctrl+Alt+F4"
+    }
+  }
+  { mnuEdit Menu
+    Text = ("Editar")
+    { mnuPaste Menu
+      Text = ("Pegar")
+      Shortcut = "Ctrl+V"
+    }
+  }
+  { mnuPreferences Menu
+    Text = ("Preferencias")
+    { mnuConfiguration Menu
+      Text = ("Configuración")
+      Picture = Picture["icon:/22/properties"]
+      Shortcut = "Ctrl+Shift+C"
+    }
+  }
+  { mnuNext Menu
+    #Translate = False
+    Text = "?"
+    { mnuHelp Menu
+      Text = ("Ayuda")
+      Picture = Picture["icon:/22/help"]
+    }
+    { mnuAbout Menu
+      Text = ("Acerca de")
+      Picture = Picture["icon:/22/info"]
+    }
+  }
+  { Panel1 Panel
+    MoveScaled(3,2,77,5)
+    Background = Color.Background
+    Arrangement = Arrange.Horizontal
+    { tobNewEPUB ToolButton
+      MoveScaled(0,0,5,5)
+      ToolTip = ("Crear un nuevo libro electrónico")
+      Picture = Picture["icon:/22/new"]
+    }
+    { tobOpenEPUB ToolButton
+      MoveScaled(5,0,5,5)
+      ToolTip = ("Abrir un libro electrónico existente")
+      Picture = Picture["application-epub+zip.png"]
+    }
+    { tobNewEPUBFromFile ToolButton
+      MoveScaled(10,0,5,5)
+      ToolTip = ("Crear un nuevo libro electrónico desde archivo")
+      Picture = Picture["icon:/22/pdf"]
+    }
+    { tobSaveEPUB ToolButton
+      MoveScaled(18,0,5,5)
+      ToolTip = ("Guardar libro electronico")
+      Picture = Picture["icon:/22/save"]
+    }
+    { tobSaveEPUBAs ToolButton
+      MoveScaled(23,0,5,5)
+      ToolTip = ("Guardar libro electronico como")
+      Picture = Picture["icon:/22/save-as"]
+    }
+    { sepEpub Separator
+      MoveScaled(31,1,0,3)
+    }
+    { tobOpenJobDirectory ToolButton
+      MoveScaled(33,0,5,5)
+      ToolTip = ("Abrir maqueta")
+      Picture = Picture["icon:/22/directory"]
+    }
+    { tobSaveModel ToolButton
+      MoveScaled(38,0,5,5)
+      ToolTip = ("Guardar maqueta")
+      Picture = Picture["icon:/22/directory"]
+    }
+    { tobSaveModelAs ToolButton
+      MoveScaled(42,0,5,5)
+      ToolTip = ("Guardar maqueta como")
+      Picture = Picture["icon:/22/archive"]
+    }
+    { sepModel Separator
+      MoveScaled(48,1,0,3)
+    }
+    { sepImport Separator
+      MoveScaled(56,1,0,3)
+    }
+    { tobMetaEdit ToolButton
+      MoveScaled(58,0,5,5)
+      ToolTip = ("Editar los metadatos de la obra")
+      Picture = Picture["icon:/22/database"]
+    }
+  }
+  { Panel2 Panel
+    MoveScaled(1,8,102,33)
+    Background = Color.Background
+    Expand = True
+    Arrangement = Arrange.Vertical
+    { HSplit1 HSplit
+      MoveScaled(1,1,100,31)
+      Expand = True
+      Border = False
+      { pnlPages Panel
+        MoveScaled(1,2,14,28)
+        Expand = True
+        Arrangement = Arrange.Vertical
+        Border = Border.Plain
+        { TreeView1 TreeView
+          MoveScaled(2,3,11,10)
+          Visible = False
+          Background = Color.Background
+          Expand = True
+          Border = False
+          ScrollBar = Scroll.Vertical
+        }
+        { TreeView2 TreeView
+          MoveScaled(2,15,11,11)
+          Font = Font["Noto Mono"]
+          Background = Color.Background
+          Expand = True
+          Border = False
+          ScrollBar = Scroll.Vertical
+        }
+      }
+      { Separator1 Separator
+        MoveScaled(18,1,1,30)
+      }
+      { pnlMain Panel
+        MoveScaled(19,2,78,28)
+        Arrangement = Arrange.Vertical
+        Border = Border.Plain
+        { pnlTools Panel
+          MoveScaled(3,1,73,5)
+          Arrangement = Arrange.Horizontal
+          { tobMode ToolButton
+            MoveScaled(1,0,5,5)
+            #Translate = False
+            Font = Font["Bold"]
+            Background = Color.DarkCyan
+            ToolTip = "Editar código"
+            Text = "</ >"
+            Toggle = True
+          }
+          { pnlCodeTools Panel
+            MoveScaled(13,0,57,5)
+            Background = Color.Background
+            Expand = True
+            Arrangement = Arrange.Horizontal
+            { tobSaveCode ToolButton
+              MoveScaled(1,0,5,5)
+              ToolTip = ("Guardar archivo")
+              Picture = Picture["icon:/22/save"]
+            }
+            { togPaste ToolButton
+              MoveScaled(5,0,5,5)
+              Font = Font["Bold"]
+              ToolTip = ("Pegar")
+              Picture = Picture["icon:/22/paste"]
+            }
+            { togHideToggle ToolButton
+              MoveScaled(10,0,5,5)
+              Font = Font["Bold"]
+              ToolTip = ("Ocultar o mostrar la línea de código seleccionada")
+              Picture = Picture["icon:/22/star"]
+            }
+            { h1 ToolButton Tags
+              Name = "h1"
+              MoveScaled(16,0,5,5)
+              Font = Font["Bold"]
+              Tag = "h1"
+              Text = ("H1")
+            }
+            { h2 ToolButton Tags
+              Name = "h2"
+              MoveScaled(19,0,5,5)
+              Font = Font["Bold"]
+              Tag = "h2"
+              Text = ("H2")
+            }
+            { h3 ToolButton Tags
+              Name = "h3"
+              MoveScaled(22,0,5,5)
+              Font = Font["Bold"]
+              Tag = "h3"
+              Text = ("H3")
+            }
+            { h4 ToolButton Tags
+              Name = "h4"
+              MoveScaled(25,0,5,5)
+              Font = Font["Bold"]
+              Tag = "h4"
+              Text = ("H4")
+            }
+            { h5 ToolButton Tags
+              Name = "h5"
+              MoveScaled(28,0,5,5)
+              Font = Font["Bold"]
+              Tag = "h5"
+              Text = ("H5")
+            }
+            { h6 ToolButton Tags
+              Name = "h6"
+              MoveScaled(31,0,5,5)
+              Font = Font["Bold"]
+              Tag = "h6"
+              Text = ("H6")
+            }
+            { p ToolButton Tags
+              Name = "p"
+              MoveScaled(34,0,5,5)
+              Font = Font["Bold"]
+              Tag = "p"
+              Text = ("P")
+            }
+            { tobTextWrap ToolButton
+              MoveScaled(38,0,5,5)
+              ToolTip = ("Ajuste de texto")
+              Picture = Picture["icon:/22/jump"]
+            }
+            { togCleaner ToolButton
+              MoveScaled(43,0,5,5)
+              Font = Font["Bold"]
+              ToolTip = ("Simplificación del código")
+              Picture = Picture["icon:/22/html"]
+            }
+          }
+        }
+        { pnlEditor Panel
+          MoveScaled(3,9,59,18)
+          Expand = True
+          Arrangement = Arrange.Horizontal
+          { PictureBox1 PictureBox
+            MoveScaled(0,0,16,16)
+            Expand = True
+          }
+          { ScrollView1 ScrollView
+            MoveScaled(19,2,9,12)
+            Expand = True
+            Arrangement = Arrange.Vertical
+            Border = False
+            { TextLabel1 TextLabel
+              MoveScaled(1,2,5,14)
+              Background = Color.Background
+              Expand = True
+              Wrap = False
+            }
+          }
+          { TextEditor1 TextEditor
+            MoveScaled(36,0,5,14)
+            Background = Color.Background
+            Expand = True
+            Border = False
+            Mode = "HTML"
+          }
+        }
+      }
+    }
+  }
+  { Panel5 Panel
+    MoveScaled(1,42,102,4)
+    Background = Color.Background
+    Arrangement = Arrange.Horizontal
+    Padding = 4
+    { lblInfo Label
+      MoveScaled(9,0,24,4)
+      #Translate = False
+      Expand = True
+      Text = "Información"
+    }
+  }
+}

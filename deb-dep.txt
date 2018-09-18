@@ -1,0 +1,9 @@
+file
+imagemagick
+texlive-extra-utils
+mupdf-tools
+sigil
+poppeler-utils
+ghostscript
+tesseract-ocr
+tesseract-ocr-spa

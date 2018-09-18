@@ -1,0 +1,139 @@
+' Gambas module file
+
+Public Function MkConfXml(strXmlPath As String) As Integer ''Creacion de archivo de configuracion inicial xml.
+  
+  Dim writer As New XmlWriter
+  Dim stxParameters As New String[]
+  Dim intE As Integer
+  Dim stxAtrib As New String[]
+  Dim intA As Integer
+  
+  stxParameters.Add("MediaFolder:Path")
+  stxParameters.Add("CapitalMode:Mode")
+  stxParameters.Add("LangCurr:Name")
+  stxParameters.Add("Languages:Name")
+  stxParameters.Add("Software:Name:Seed:Prod")
+  
+  'Apertura del documento
+  writer.Open(strXmlPath, True) 'True es para que le ponga los saltos de linea
+  writer.StartElement(Application.Name)
+  
+  'Creación de una entidad
+  For intE = 0 To stxParameters.Max
+    stxAtrib.Clear
+    stxAtrib = Split(stxParameters[intE], ":")
+    
+    writer.StartElement(stxAtrib[0])
+    If stxAtrib.Count > 1 Then
+      For intA = 1 To stxAtrib.Max
+        writer.StartElement(stxAtrib[intA])
+        writer.Text("")
+        writer.EndElement
+      Next
+    Endif
+    writer.EndElement
+  Next
+  
+  writer.EndElement
+  
+  writer.EndDocument
+  
+  Return 1
+  
+End
+
+Public Function EditXml(strPath As String) As Integer ''Edicion de un archivo xml, como por ejemplo SVG para editar el valor, color etc. de un texto por el metodo del tag del elemento. Esta forma de trabajar permite editar multiples veces el archivo, ya que, coomo el tag permanece inalterable, se puede acceder reiteradas veces.
+  
+  Dim document As New XmlDocument
+  Dim element As New XmlElement
+  Dim node As XmlNode
+  Dim strSave As String
+  Dim int As Integer
+  ' Dim str As String
+  Dim stx As New String[]
+  
+  strSave = File.Dir(strPath) &/ File.BaseName(strPath) & "-prod." & File.Ext(strPath)
+  document.Open(strPath)
+  
+  For Each element In document.GetElementsByTagName("text", gb.IgnoreCase)
+    For Each node In element.Attributes
+      Select node.Name
+        Case "id"
+          'If node.Value = "dvariety"
+          element.Value = "variedad"
+          For Each node In element.Attributes
+            Select node.Name
+              Case "style"
+                'Logica para cambiar los colores y estilos en caso de cambios de los valores
+                stx = Split(node.Value, ";")
+                For int = 0 To stx.max
+                  Select Split(stx[int], ":")[0]
+                    Case "fill"
+                      stx[int] = "fill:#FF0000"
+                  End Select
+                Next
+                node.Value = stx.Join(";")
+            End Select
+          Next
+          'Endif
+      End Select
+    Next
+  Next
+  document.Save(strSave)
+  Wait 0.01
+  If Exist(strSave) Then
+    Desktop.Open(strSave)
+  Endif
+  
+  Return 1
+  
+End
+
+Public Function XmlTagValue(str As String) As String[] ''Devuelve una matrix de texto donde cada ítem es un par Tag[tab]Value. Como parametro de entrada requere el texto xml.
+  
+  Dim document As New XmlDocument
+  'Dim element As New XmlElement
+  'Dim node As XmlNode
+  'Dim int As Integer
+  Dim stx As New String[]
+  Dim node As XmlNode
+  Dim strTag As String
+  Dim strVal As String
+  'Dim strTyp As String
+  Dim atrib As XmlNode
+  
+  document.FromString(str)
+  
+  For Each node In document.All
+    Select node.name
+        '      Case "dc:title", "dc:creator", "dc:subject", "dc:description", "dc:publisher", "dc:contributor", "dc:date", "dc:type", "dc:format", "dc:identifier", "dc:source", "dc:language", "dc:relation", "dc:coverage", "dc:rights"
+        '        strTag = Replace(node.name, "dc:", "")
+        '        strVal = node.Value
+        '        If strVal <> "" Then
+        '          stx.Add(strTag & "\t" & strVal)
+        '        Endif
+        
+        '     Case "title", "creator", "subject", "description", "publisher", "contributor", "date", "type", "format", "identifier", "source", "language", "relation", "coverage", "rights"
+      Case "package", "navPoint", "dc:creator", "dc:identifier"
+        stx.Add(node.Name & "\t" & node.Value)
+        For Each atrib In node.Attributes
+          
+          strTag = node.Name & ":" & atrib.Name
+          strVal = atrib.Value
+          stx.Add(strTag & "\t" & strVal)
+          
+        Next
+        
+      Case "dc:title", "dc:subject", "dc:description", "dc:publisher", "dc:contributor", "dc:date", "dc:type", "dc:format", "dc:source", "dc:language", "dc:relation", "dc:coverage", "dc:rights"  
+        strTag = node.name
+        strVal = node.Value
+        '        If strVal <> "" Then
+        stx.Add(strTag & "\t" & strVal)
+        '        Endif
+        '    End Select
+    End Select  
+  Next
+  
+  Return stx
+  
+End

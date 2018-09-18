@@ -1,0 +1,35 @@
+# Gambas Form File 3.0
+
+{ Form Form
+  MoveScaled(0,0,64,64)
+  Expand = True
+  Arrangement = Arrange.Vertical
+  Spacing = True
+  Margin = True
+  { pnlBase ScrollView
+    MoveScaled(3,3,58,48)
+    Expand = True
+    Arrangement = Arrange.Vertical
+    Spacing = True
+    Border = False
+  }
+  { Panel2 Panel
+    MoveScaled(4,55,56,5)
+    Arrangement = Arrange.Horizontal
+    AutoResize = True
+    Margin = True
+    { btnCancel Button
+      MoveScaled(3,0,16,5)
+      Text = ("Cancelar")
+    }
+    { Panel3 Panel
+      MoveScaled(24,0,4,4)
+      Expand = True
+      AutoResize = True
+    }
+    { btnAcept Button
+      MoveScaled(34,0,16,5)
+      Text = ("Aceptar")
+    }
+  }
+}

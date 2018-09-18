@@ -1,0 +1,31 @@
+' Gambas class file
+
+Public Sub Form_Open()
+  
+  txoTesseract.Text = GEFSys.PkgStat("tesseract") 
+  
+  cmoTesseract.Add("spa")
+  cmoTesseract.Add("eng")
+  cmoTesseract.Add("fra")
+  cmoTesseract.Add("ita")
+  
+  cmoTesseract.Text = Settings["lang", "spa"]
+  
+  Print GEFSys.PkgStat("tesseract") 
+  
+End
+
+Public Sub btnSave_Click()
+  
+  Settings["lang"] = cmoTesseract.Text
+  FMain.strLang = cmoTesseract.Text
+  Wait 0.01
+  Me.Close
+
+End
+
+Public Sub btnCancel_Click()
+  
+  Me.Close
+  
+End

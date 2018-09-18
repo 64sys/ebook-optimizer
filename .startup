@@ -1,0 +1,19 @@
+FMain
+Ebook optimizer
+0
+0
+0.0.18
+
+gb.image
+gb.gui.qt
+gb.form
+gb.compress
+gb.desktop
+gb.eval
+gb.eval.highlight
+gb.form.editor
+gb.settings
+gb.mime
+gb.pdf
+gb.xml
+
