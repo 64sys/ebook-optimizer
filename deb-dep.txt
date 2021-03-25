@@ -7,3 +7,6 @@ poppeler-utils
 ghostscript
 tesseract-ocr
 tesseract-ocr-spa
+tesseract-ocr-eng
+tesseract-ocr-ita
+tesseract-ocr-fra

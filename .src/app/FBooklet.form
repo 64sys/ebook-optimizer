@@ -1,0 +1,448 @@
+# Gambas Form File 3.0
+
+{ Form Form
+  MoveScaled(0,0,141,80)
+  Arrangement = Arrange.Vertical
+  { grpFile Menu menuapp
+    Name = "grpFile"
+    Text = ("File")
+    { mnuOpen Menu menuapp
+      Name = "mnuOpen"
+      Text = ("Open file")
+      Picture = Picture["icon:/22/open"]
+      Tag = "openPDF"
+    }
+    { mnuLoad Menu menuapp
+      Name = "mnuLoad"
+      Text = ("Load directory")
+      Picture = Picture["icon:/22/upload"]
+      Tag = "openDirectory"
+    }
+    { mnuImages Menu menuapp
+      Name = "mnuImages"
+      Text = ("Extract pages as images")
+      Picture = Picture["icon:/22/image"]
+      Tag = "image"
+    }
+    { mnuTexts Menu menuapp
+      Name = "mnuTexts"
+      Text = ("Extract text from pages")
+      Picture = Picture["icon:/22/text"]
+      Tag = "text"
+    }
+    { mnuBook Menu menuapp
+      Name = "mnuBook"
+      Text = ("Create book")
+      Picture = Picture["icon:/22/book"]
+      Tag = "book"
+    }
+    { mnuContent Menu menuapp
+      Name = "mnuContent"
+      Text = ("Packing the book")
+      Picture = Picture["icon:/22/archive"]
+      Tag = "zip"
+    }
+    { mnuExit Menu menuapp
+      Name = "mnuExit"
+      Text = ("Exit")
+      Picture = Picture["icon:/22/quit"]
+      Tag = "quit"
+    }
+  }
+  { grpTools Menu
+    Text = ("Tools")
+    { mnuOpenDir Menu menuapp
+      Name = "mnuOpenDir"
+      Text = ("Open directory")
+      Picture = Picture["icon:/22/directory"]
+      Tag = "directory"
+    }
+    { mnuScantailor Menu menuapp
+      Name = "mnuScantailor"
+      #Translate = False
+      Text = "ScanTailor"
+      Picture = Picture["icon:/22/exec"]
+      Tag = "scantailor"
+    }
+    { mnuLoadScantailor Menu menuapp
+      Name = "mnuLoadScantailor"
+      Text = ("New project from post processed images")
+      Picture = Picture["icon:/22/image"]
+      Tag = "new-project-from-scantailor-pages"
+    }
+    { mnuConvertToPNG Menu menuapp
+      Name = "mnuConvertToPNG"
+      Text = ("Create a copy for OCR")
+      Picture = Picture["icon:/22/opacity"]
+      Enabled = False
+      Tag = "imagesOCR"
+    }
+    { mnuArrangeParagraphImages Menu menuapp
+      Name = "mnuArrangeParagraphImages"
+      Text = ("Arrange paragraph images")
+      Picture = Picture["icon:/22/image"]
+      Enabled = False
+      Tag = "paragraphimages"
+    }
+    { mnuOCRImagesTrim Menu menuapp
+      Name = "mnuOCRImagesTrim"
+      Text = ("Crop all images OCR")
+      Picture = Picture["icon:/22/crop"]
+      Tag = "ocr-crop"
+    }
+    { mnuPDFBooklet Menu menuapp
+      Name = "mnuPDFBooklet"
+      Text = ("Create PDF file [A6]")
+      Picture = Picture["icon:/22/book"]
+      Tag = "A6"
+    }
+    { Menu1 Menu menuapp
+      Name = "Menu1"
+      Text = ("Create PDF file [A5]")
+      Picture = Picture["icon:/22/book"]
+      Tag = "A5"
+    }
+    { mnuPDFBookletA5 Menu menuapp
+      Name = "mnuPDFBookletA5"
+      Text = ("Create PDF file [A4]")
+      Picture = Picture["icon:/22/book"]
+      Tag = "iA4"
+    }
+  }
+  { grpHelp Menu
+    #Translate = False
+    Text = "?"
+    { mnuOptions Menu menuapp
+      Name = "mnuOptions"
+      Text = ("Preferences")
+      Picture = Picture["icon:/22/options"]
+      Tag = "options"
+    }
+    { mnuHelp Menu menuapp
+      Name = "mnuHelp"
+      Text = ("Help")
+      Picture = Picture["icon:/22/help"]
+      Tag = "help"
+      Shortcut = "F1"
+    }
+  }
+  { Panel2 Panel
+    MoveScaled(1,1,136,5)
+    Arrangement = Arrange.Horizontal
+    { tobShowMenu ToolButton menuapp
+      Name = "tobShowMenu"
+      MoveScaled(0,0,5,5)
+      Tag = "showMenu"
+      ToolTip = ("Show tree")
+      Picture = Picture["icon:/22/menu"]
+      Toggle = True
+    }
+    { pnlIconsPage Panel
+      MoveScaled(5,0,44,5)
+      Arrangement = Arrange.Horizontal
+      { tobBack ToolButton menuapp
+        Name = "tobBack"
+        MoveScaled(1,0,5,5)
+        Tag = "back"
+        ToolTip = ("Previous page")
+        Picture = Picture["icon:/22/previous"]
+      }
+      { tobNext ToolButton menuapp
+        Name = "tobNext"
+        MoveScaled(16,0,7,5)
+        Tag = "next"
+        ToolTip = ("Next page")
+        Text = ("Next")
+        Picture = Picture["icon:/22/next"]
+      }
+      { ValueBox1 ValueBox menuapp
+        Name = "ValueBox1"
+        MoveScaled(27,1,6,4)
+        Tag = "goto"
+        Alignment = Align.Center
+      }
+      { OverrideText SwitchButton
+        MoveScaled(34,0,9,5)
+      }
+    }
+    { pnlIcons Panel
+      MoveScaled(57,0,8,5)
+      Tag = "file"
+      Expand = True
+      Arrangement = Arrange.Horizontal
+    }
+    { btoSearch ButtonBox
+      MoveScaled(68,0,24,4)
+      Picture = Picture["icon:/22/find"]
+    }
+    { tobConsistencyCheck ToolButton
+      MoveScaled(115,0,5,5)
+      ToolTip = ("Consistency check")
+      Picture = Picture["icon:/22/wizard"]
+    }
+    { lblActivity Label
+      MoveScaled(122,0,12,4)
+      Expand = True
+      Alignment = Align.Right
+    }
+  }
+  { Separator3 Separator
+    MoveScaled(1,7,50,0)
+  }
+  { HSplit1 HSplit
+    MoveScaled(1,7,138,54)
+    Expand = True
+    { pnlTree Panel
+      MoveScaled(1,3,11,48)
+      Visible = False
+      Arrangement = Arrange.Vertical
+      { TreeView1 TreeView
+        MoveScaled(1,5,9,35)
+        Background = Color.Transparent
+        Expand = True
+        Editable = True
+        Border = False
+      }
+      { pnlSearch2 Panel
+        MoveScaled(1,42,8,5)
+        Background = Color.ButtonBackground
+        Arrangement = Arrange.Horizontal
+        { Spring3 Spring
+          MoveScaled(0,0,1,4)
+        }
+        { tobOpenImageFile ToolButton
+          MoveScaled(1,0,5,5)
+          ToolTip = ("Open image in extenal viewer")
+          Picture = Picture["icon:/22/image"]
+        }
+        { Spring4 Spring
+          MoveScaled(6,0,1,4)
+        }
+      }
+    }
+    { pnlText Panel
+      MoveScaled(13,3,77,48)
+      Expand = True
+      Arrangement = Arrange.Horizontal
+      { Panel8 HSplit
+        MoveScaled(0,1,77,45)
+        Expand = True
+        { pnlTextEditor Panel
+          MoveScaled(10,2,56,42)
+          Expand = True
+          Arrangement = Arrange.Vertical
+          { pnlSearch Panel
+            MoveScaled(1,1,55,5)
+            Background = Color.ButtonBackground
+          }
+          { pnlTools Panel
+            MoveScaled(2,7,55,5)
+            Background = Color.ButtonBackground
+            Tag = "tools"
+            Arrangement = Arrange.Horizontal
+          }
+          { TextEditor1 TextEditor
+            MoveScaled(1,14,55,4)
+            Font = Font["Noto Sans Mono Light"]
+            Background = Color.TextBackground
+            Drop = True
+            Expand = True
+            Border = False
+            ScrollBar = Scroll.Vertical
+            ShowCurrent = True
+            ShowLineNumber = True
+            ShowModified = True
+            ShowIcon = True
+          }
+          { pnlEditor Panel
+            MoveScaled(1,19,55,5)
+            Tag = "editor"
+            Arrangement = Arrange.Horizontal
+          }
+          { pnlTextEditorTools Panel
+            MoveScaled(1,24,55,5)
+            Background = Color.ButtonBackground
+            Tag = "editor"
+            Arrangement = Arrange.Horizontal
+            { tobReExtractText ToolButton
+              MoveScaled(0,0,5,5)
+              Tag = "textpage"
+              ToolTip = ("Extract text again")
+              Picture = Picture["icon:/22/refresh"]
+            }
+            { Spring2 Spring
+              MoveScaled(5,0,2,5)
+            }
+            { tobCreateParagraphImage ToolButton
+              MoveScaled(7,0,5,5)
+              ToolTip = ("Create a image copy for this paragrap")
+              Picture = Picture["icon:/22/camera"]
+            }
+            { tobPaste ToolButton menueditor
+              Name = "tobPaste"
+              MoveScaled(11,0,5,5)
+              Font = Font["Bold"]
+              Tag = "paste"
+              ToolTip = ("Paste")
+              Picture = Picture["icon:/22/paste"]
+            }
+            { tobH1 ToolButton menueditor
+              Name = "tobH1"
+              MoveScaled(15,0,5,5)
+              #Translate = False
+              Font = Font["Bold"]
+              Tag = "ctrl-1"
+              Text = "H1"
+            }
+            { tobH2 ToolButton menueditor
+              Name = "tobH2"
+              MoveScaled(19,0,5,5)
+              #Translate = False
+              Font = Font["Bold"]
+              Tag = "ctrl-2"
+              Text = "H2"
+            }
+            { tobH3 ToolButton menueditor
+              Name = "tobH3"
+              MoveScaled(23,0,5,5)
+              #Translate = False
+              Font = Font["Bold"]
+              Tag = "ctrl-3"
+              Text = "H3"
+            }
+            { tobH4 ToolButton menueditor
+              Name = "tobH4"
+              MoveScaled(27,0,5,5)
+              #Translate = False
+              Font = Font["Bold"]
+              Tag = "ctrl-4"
+              Text = "H4"
+            }
+            { tobH5 ToolButton menueditor
+              Name = "tobH5"
+              MoveScaled(31,0,5,5)
+              #Translate = False
+              Font = Font["Bold"]
+              Tag = "ctrl-5"
+              Text = "H5"
+            }
+            { tobH6 ToolButton menueditor
+              Name = "tobH6"
+              MoveScaled(35,0,5,5)
+              #Translate = False
+              Font = Font["Bold"]
+              Tag = "ctrl-6"
+              Text = "H6"
+            }
+            { tobP ToolButton menueditor
+              Name = "tobP"
+              MoveScaled(39,0,5,5)
+              #Translate = False
+              Font = Font["Bold"]
+              Tag = "ctrl-p"
+              Text = "P"
+            }
+            { tobTextWrap ToolButton menueditor
+              Name = "tobTextWrap"
+              MoveScaled(43,0,5,5)
+              Tag = "wrap"
+              ToolTip = ("Text wrap")
+              Picture = Picture["icon:/22/jump"]
+              Toggle = True
+            }
+            { Spring1 Spring
+              MoveScaled(47,0,2,5)
+            }
+            { tobSaveCode ToolButton menueditor
+              Name = "tobSaveCode"
+              MoveScaled(50,0,5,5)
+              Tag = "save"
+              ToolTip = ("Save File")
+              Picture = Picture["icon:/22/save"]
+            }
+          }
+          { pnlPageImages Panel
+            MoveScaled(1,30,55,11)
+            Visible = False
+            Arrangement = Arrange.Column
+            Spacing = True
+          }
+        }
+        { Separator2 Separator
+          MoveScaled(67,11,0,4)
+        }
+        { WebView1 WebView
+          MoveScaled(68,2,8,42)
+          Expand = True
+        }
+      }
+    }
+    { pnlMetadata Panel
+      MoveScaled(92,3,45,47)
+      Expand = True
+      Arrangement = Arrange.Vertical
+      { Panel1 Panel
+        MoveScaled(1,1,43,39)
+        Expand = True
+        Arrangement = Arrange.Horizontal
+        { pnlMetadataControls Panel
+          MoveScaled(0,0,22,35)
+          Background = Color.DarkGray
+          Expand = True
+          Arrangement = Arrange.Row
+          Spacing = True
+          Margin = True
+        }
+        { Panel5 Panel
+          MoveScaled(24,1,18,34)
+          Expand = True
+          Arrangement = Arrange.Vertical
+          { PictureBox1 PictureBox
+            MoveScaled(1,9,16,16)
+            Expand = True
+          }
+        }
+      }
+      { pnlMetadataTools Panel
+        MoveScaled(1,41,43,5)
+        Background = Color.ButtonBackground
+      }
+    }
+  }
+  { Separator5 Separator
+    MoveScaled(17,64,50,0)
+  }
+  { Panel3 Panel
+    MoveScaled(2,66,86,4)
+    Arrangement = Arrange.Horizontal
+    Margin = True
+    { Label1 Label
+      MoveScaled(1,0,24,4)
+      Expand = True
+      Alignment = Align.Left
+    }
+    { Panel4 Panel
+      MoveScaled(25,0,33,4)
+      Arrangement = Arrange.Vertical
+      { ProgressBar1 ProgressBar
+        MoveScaled(7,1,32,2)
+        Visible = False
+        Expand = True
+      }
+    }
+    { lblSelection Label
+      MoveScaled(69,0,4,5)
+      Expand = True
+    }
+    { lblCursor Label
+      MoveScaled(74,0,6,5)
+      Expand = True
+      Alignment = Align.Right
+    }
+  }
+  { ActivityLogger #Timer
+    #MoveScaled(133,70)
+    Enabled = True
+    Delay = 60000
+  }
+}

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   viewBox="0 0 48 48"
+   version="1.1"
+   id="svg10"
+   sodipodi:docname="quit.svg"
+   inkscape:version="1.0.2 (e86c870879, 2021-01-15)">
+  <metadata
+     id="metadata16">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs
+     id="defs14">
+    <inkscape:perspective
+       sodipodi:type="inkscape:persp3d"
+       inkscape:vp_x="0 : 24 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_z="48 : 24 : 1"
+       inkscape:persp3d-origin="24 : 16 : 1"
+       id="perspective839" />
+  </defs>
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="1920"
+     inkscape:window-height="1015"
+     id="namedview12"
+     showgrid="false"
+     inkscape:zoom="4"
+     inkscape:cx="66.167995"
+     inkscape:cy="71.353728"
+     inkscape:window-x="1366"
+     inkscape:window-y="37"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg10"
+     inkscape:document-rotation="0" />
+  <path
+     style="color:#dfdfdf;fill:#0066b3;fill-opacity:1;stroke-width:2.88811"
+     class="ColorScheme-Text"
+     d="M 10.424139,4.3994981 C 7.2241178,4.3994404 4.6479276,6.9756883 4.6479276,10.175709 v 8.647395 l 5.7762114,0.01704 V 10.175825 H 39.305195 V 39.056882 H 10.424139 v -8.664315 l -5.7762114,-0.01704 v 8.681238 c 0,3.200021 2.5761902,5.776211 5.7762114,5.776211 h 28.881056 c 3.20002,0 5.77621,-2.57619 5.77621,-5.776211 V 10.175709 c 0,-3.2000207 -2.57619,-5.7762109 -5.77621,-5.7762109 z m 12.161632,8.6643169 -4.00499,4.00499 4.721373,4.721375 -21.5479725,-0.06204 v 5.776211 l 21.5479725,0.06204 -4.721373,4.715737 4.00499,4.00499 11.552423,-11.670881 z"
+     id="path5" />
+</svg>

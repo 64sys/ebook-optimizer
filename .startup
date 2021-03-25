@@ -1,19 +1,27 @@
-FMain
-Ebook optimizer
+Main
+ebook-optimizer
 0
 0
-0.0.18
+0.0.126
 
 gb.image
-gb.gui.qt
+gb.qt5
 gb.form
-gb.compress
+gb.db
+gb.db.form
 gb.desktop
 gb.eval
 gb.eval.highlight
+gb.util
 gb.form.editor
 gb.settings
-gb.mime
-gb.pdf
+gb.form.mdi
+gb.logging
+gb.markdown
+gb.pcre
+gb.poppler
+gb.qt5.webkit
+gb.util.web
 gb.xml
+gb.xml.html
 

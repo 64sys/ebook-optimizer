@@ -1,0 +1,211 @@
+' Gambas module file
+
+'
+' ebook-optimizer
+' Book optimization
+'
+' Copyright (C) Martín Belmonte
+'
+' This program is free software; you can redistribute it and/or modify
+' it under the terms of the GNU General Public License as published by
+' the Free Software Foundation; either version 2 of the License, or
+' (at your option) any later version.
+'
+' This program is distributed in the hope that it will be useful,
+' but WITHOUT ANY WARRANTY; without even the implied warranty of
+' MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+' GNU General Public License for more details.
+'
+' You should have received a copy of the GNU General Public License
+' along with this program; if not, write to the Free Software
+' Foundation, Inc., 51 Franklin St, Fifth Floor,
+' Boston, MA  02110-1301  USA
+'
+
+'''For compatibility with non-graphical applications that must have a Main method, there is this method that redirects to Starter, which is the one that establishes everything that is necessary for the program to work properly.
+
+Private con As New Connection       '' Connection to the database
+Public adi As String               '' Program Directory
+Public apc As String               '' Program configuration file
+Public dbc As String               '' Database configuration file
+Public etx As String               '' Default plain text editor
+Public lgf As String               '' Incident log file
+Public dbn As String               '' Database name
+Public sql As String               '' SQL statement of database creation varies according to the type of database.
+Public lgg As Logger               '' Application event log.
+
+Public ftx As New String[]         '' List of tables referenced by others
+Public ntx As New String[]         '' List of tables never referenced by others
+Public trf As New Collection       '' List of tables and sublist of referenced tables
+Public rpl As New Collection       '' List of table and field names and their titles to replace names by titles in the xml when it is created
+
+' Single-use variables
+Public ldd As Boolean              '' Flag completion indicator.
+
+' HTML show variables
+Public sForeground As String       '' Foreground color in HEX mode
+Public sBackground As String       '' Background color in HEX mode
+
+'' For compatibility with applications that are not graphical, this method exists, since it allows to operate both with a form and without it.
+Public Sub Main()
+
+  Dim tbl As Table
+  Dim sFile As String
+  Dim cex As New Collection         '' Collection with variables to go to the next module or form
+  Dim thx As New String[]           '' Internal editor topic list
+  Dim i As Integer
+  Dim tb As Object
+  Dim x As String
+
+  '' Verify that the program directory exists in Home
+  adi = User.Home &/ "." & String.LCase(vag.NoSymbols(Application.Name))
+  apc = adi &/ "cfg.xml"
+  dbc = adi &/ "dbs.xml"
+  lgf = adi &/ Format(Now(), "yyyy") & ".log"
+
+  If Exist(adi) = False Then
+    Shell "mkdir -p " & adi Wait
+  Endif
+
+  '' Booting the loging system
+  If Exist(lgf) = False Then
+    Shell "touch " & lgf Wait
+  Endif
+  lgg = New Logger(Logger.Info, Logger.DefaultFormat, lgf)
+  lgg.Begin
+
+  '' Checking the default plain text editor on the system
+  If sog.MimeDefaultApp("text/plain").Count > 0 Then
+    etx = sog.MimeDefaultApp("text/plain")[0]
+  Else
+    etx = ""
+  Endif
+
+  '' Verify that the database exists
+  ' In this part, if it is necessary to create the base, the actions will be different according to the type of base
+  ' 1 - Base type. In this program sqlite3 is defined but it could be any other
+  con.Type = "sqlite3"
+
+  Select con.Type
+    Case "sqlite3"
+      con.Host = adi
+      dbn = "app.sqlite"
+      sql = File.Load("./sqlite.sql")
+    Case "mysql"
+      con.Host = "server"
+      con.Port = 1234
+      con.User = "user"          ' Here you have to put a user with DB creation permissions the first time the program is opened
+      con.Password = "password"  ' The access key to the database.
+      dbn = "app"
+      sql = File.Load("./mysql.sql")
+    Case "postgresql"
+      con.Host = "server"
+      con.Port = 1234
+      con.User = "user"          ' Here you have to put a user with DB creation permissions the first time the program is opened
+      con.Password = "password"  ' The access key to the database.
+      dbn = "app"
+      sql = File.Load("./pgsql.sql")
+    Case "odbc"
+
+  End Select
+  '2 Now we ask the connection if the database exists, for this we must open it
+  con.Open
+  If con.Opened Then
+    If con.Databases.Exist(dbn) Then
+      ' Print ("The database exists") & " " & dbn
+      con.Close
+      con.Name = dbn
+      con.Open
+      If con.Tables.Count = 2 Then
+        ' Print ("Database is inconsistent") & " " & dbn
+        'Creating the tables
+        Try con.Exec("BEGIN TRANSACTION;\n" & sql & "\nROLLBACK;")
+        If Not Error Then
+          con.Exec(sql)
+          ' Print Replace(Error.Text, "\n", " ")
+        Endif
+        con.Close
+        con.Open
+      Endif
+    Else
+      ' Print ("The database not exists") & " " & dbn
+      con.Databases.Add(dbn)
+      con.Close
+      con.Name = dbn
+      con.Open
+      '' Creating the database and tables
+      Try con.Exec("BEGIN TRANSACTION;\n" & sql & "\nROLLBACK;")
+      If Not Error Then
+        con.Exec(sql)
+        ' Print Replace(Error.Text, "\n", " ")
+      Endif
+      con.Close
+      con.Open
+    Endif
+
+  Endif
+
+  'Check if the views are created, since when using foreign keys the views are necessary to correctly see the data in tables
+  For Each tbl In con.Tables
+    If tbl.System = False Then
+      dbs.CheckViews(con, tbl.Name)
+    Endif
+  Next
+
+  'Replacements
+  rpl = Custom.Replacements()
+
+  'Create the XML file with the information from the database
+  If Exist(dbc) = False Then
+    sFile = dbs.DBConf(con, dbc, rpl)
+  Endif
+
+  'Internal editor theme
+  If Exist(adi &/ "editor") = False Then
+    Shell "mkdir " & adi &/ "editor" Wait
+  Endif
+
+  thx.Clear
+  thx = fil.ScanFiles("./editor/", ["theme"])
+
+  If thx.Count > 0 Then
+    For i = 0 To thx.Max
+      If Exist(thx[i]) Then
+        If Exist(adi &/ "editor" &/ File.Name(thx[i])) = False Then
+          Copy thx[i] To adi &/ "editor" &/ File.Name(thx[i])
+        Endif
+      Endif
+    Next
+  Endif
+
+  'Copying the script to create EPUB files
+
+  If Exist(adi &/ "mbook.sh") = False Then
+    Try Copy "mbook.sh" To adi &/ "mbook.sh"
+    Wait 0.01
+  Endif
+
+  'Loaded form indication flag
+  ldd = True
+
+  'List tables import order
+  trf = dbs.TableReferences(con)
+
+  For Each tb In con.Tables
+    If tb.System = False Then
+      ftx.Insert(dbs.ImportOrder(con, [tb.Name]))
+    Endif
+  Next
+  ftx.Reverse()
+  For Each x In ftx
+    If ntx.Exist(x) = False Then
+      ntx.Add(x)
+    Endif
+  Next
+
+  sForeground = "#" & Hex$(Color.TextForeground, 6)
+  sBackground = "#" & Hex$(Color.TextBackground, 6)
+
+  FBooklet.Run()
+
+End

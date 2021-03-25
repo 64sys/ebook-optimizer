@@ -1,0 +1,52 @@
+' Gambas class file
+
+'
+' ebook-optimizer
+' Book optimization
+'
+' Copyright (C) Martín Belmonte
+'
+' This program is free software; you can redistribute it and/or modify
+' it under the terms of the GNU General Public License as published by
+' the Free Software Foundation; either version 2 of the License, or
+' (at your option) any later version.
+'
+' This program is distributed in the hope that it will be useful,
+' but WITHOUT ANY WARRANTY; without even the implied warranty of
+' MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+' GNU General Public License for more details.
+'
+' You should have received a copy of the GNU General Public License
+' along with this program; if not, write to the Free Software
+' Foundation, Inc., 51 Franklin St, Fifth Floor,
+' Boston, MA  02110-1301  USA
+'
+
+'''Image extraction class from a pdf file in 300px. To be used in conjunction with gb.Task
+
+Inherits Task
+
+Public filePDF As String
+Public dirOutput As String
+
+Public Sub Main()
+
+  Dim documentPDF As PdfDocument
+  Dim page As Integer
+  Dim fileImage As String
+  Dim imageRam As Image
+
+  If Exist(filePDF) Then
+    documentPDF = New PdfDocument(filePDF)
+
+    If Exist(dirOutput) Then
+      For page = 0 To documentPDF.Max
+        fileImage = dirOutput &/ Format(page, "0000") & ".png"
+        If Exist(fileImage) = False Then
+          bat.PdfPage2Image(filePDF, page, fileImage)
+        Endif
+      Next
+    Endif
+  Endif
+
+End

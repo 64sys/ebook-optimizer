@@ -1,0 +1,2716 @@
+' Gambas class file
+
+'
+' ebook-optimizer
+' Book optimization
+'
+' Copyright (C) Martín Belmonte
+'
+' This program is free software; you can redistribute it and/or modify
+' it under the terms of the GNU General Public License as published by
+' the Free Software Foundation; either version 2 of the License, or
+' (at your option) any later version.
+'
+' This program is distributed in the hope that it will be useful,
+' but WITHOUT ANY WARRANTY; without even the implied warranty of
+' MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+' GNU General Public License for more details.
+'
+' You should have received a copy of the GNU General Public License
+' along with this program; if not, write to the Free Software
+' Foundation, Inc., 51 Franklin St, Fifth Floor,
+' Boston, MA  02110-1301  USA
+'
+
+'------------------------------------------------------------------------------
+' Variables que se pasaron desde el módulo de inicio
+Private rpdf As PdfDocument         '' PDF inicial "en crudo" sin desencriptar etc.
+Private xpdf As PdfDocument         ''
+Private flw As New Collection       '' Variables de flujo del programa.
+Private dmx As New Collection       '' Lista de páginas y los datos accesorios inerentes a cada una de ellas.
+Private sec As String               '' Sección actual
+
+Private directoryWorking As String               '' Directorio de trabajo
+Private directoryEPUB As String               '' Directorio del EPUB
+Private directoryImagesThumbnails As String               '' Directorio donde se alojan la imagenes de baja calidad para mostrar en la interface
+Private directoryImagesBook As String               '' Directorio donde se alojan la imagenes de trabajo que se usaran para crear el libro
+Private directoryTextBook As String               '' Directorio donde se alojan los archivos de texto en bruto extraídos (un archivo por página)
+Private directoryImagesOCR As String               '' Directorio donde se alojan la imagenes de OCR
+Private directoryImagesParagraphs As String               '' Directorio donde se alojan las imágenes particulares de cada página
+Private listImagesParagraphs As New Collection      '' Colección donde la clave es la pagina y el valor es una lista de rutas de imagenes
+Private bookLanguage As String               '' Lenguage del documento
+Private bookMetadata As New Collection       '' Lista de datos del documento
+
+Private img As Image
+Private pdfDecrypted As String               '' PDF desencriptado
+Private pdfUncompressed As String               '' PDF descomprimido
+Private pdfReplacedTexts As String               '' PDF con los textos reemplazados
+Private pdfWork As String               '' PDF de trabajo que paso todos los procesos de adecuación
+Private pageIndex As Integer              '' Número de página actual
+Private pageTextFile As String               '' TXT actual
+Private textErrors As New Collection      '' Errors detected page/[lines]
+Private ren As String               '' Image path to rener from the current html file
+
+Private listImagesThumbnails As New Collection       '' Lista de imagenes (low qty) extraidas
+Private scr As Boolean              '' Bandera del que hace el scroll (grid o bar)
+
+' Variables del editor
+Public strEditorMode As String      '' Modo del editor
+
+'' Bastidores y contenido para el TextEditor
+'Private strTextFile As String       '' Archivo de texto asignado al editor.
+Private intIniPos As Integer        '' Posición de inicio de la selección
+Private intIniLine As Integer       '' Línea de inicio de la selección
+Private intEndPos As Integer        '' Posición de fin de la selección
+Private intEndLine As Integer       '' Línea de fin de la selección
+'Private strSelText As String        '' Texto seleccionado
+'
+Private intPosLine As Integer       '' Línea en la que se encuentra el cursor
+Private intPosColu As Integer       '' Columna en la que se encuentra el cursor
+Private strLineText As String       '' Texto de la linea en la que se encuentra el cursor
+Private strBefText As String        '' Texto inmediatamnete anterior a localizacion del cursor
+Private strAftText As String        '' Texto inmediatamnete posterior a localizacion del
+Private strCopyText As String       '' Texto inmediatamnete posterior a localizacion del
+Private bolEdiWrap As Boolean       '' Bandera de indicación de ajuste de texto
+''  Temas del editor
+Public strEdiTheme As String        '' Tema alctual del TextEditor.
+
+'' Work time record
+Public bTime As Boolean             '' Activity seconds accumulation variable
+Public iTime As Integer              '' Activity indication variable
+Public iOpen As Integer              '' Program opened time in minutes
+
+Public Sub Run() As Boolean
+
+  Dim obj As Object
+  Dim ictn As New Collection
+  Dim mnu As Menu
+  Dim tob As ToolButton
+  Dim i As Integer
+  Dim iSet As String
+
+  Dim p As String
+  Dim pnl As Panel
+
+  '------------------------------------------------------------------------------
+  iSet = xmg.GetVar("Desktop.Icons", Main.apc)
+  ictn = dsk.GNumix(iSet & "/")
+  '------------------------------------------------------------------------------
+  Me.Menus.Hide
+
+  For Each mnu In Me.Menus
+    For Each obj In mnu.Children
+      'Agregando item del menu en el menu alternativo
+      tob = New ToolButton(pnlIcons) As "menuapp"
+      With tob
+        .Name = "tob" & obj.Tag & CStr(i)
+        .Tag = obj.Tag
+        .Tooltip = obj.Text
+        .Enabled = obj.Enabled
+        .W = 35
+        .H = 35
+        ' Aquí se reemplaza el picture en caso que exista en la colección
+        If Exist(ictn[obj.Tag]) Then
+          If Stat(ictn[obj.Tag]).Type = gb.File Or Stat(ictn[obj.Tag]).Type = gb.Link Then
+            tob.Picture = Image.Load(ictn[obj.Tag]).Stretch(20, 20).Picture
+          Else
+            tob.Picture = obj.Picture
+          Endif
+        Else
+          tob.Picture = obj.Picture
+        Endif
+      End With
+      Inc i
+    Next
+  Next
+
+  ' Acá van todos los paneles que se quieren incluir en el cambiazo de iconos
+  For Each p In ["pnlTextEditorTools", "pnlIconsPage"]
+    pnl = Me[p]
+    For Each obj In pnl.Children
+      If Object.Type(obj) = "ToolButton" Then
+        If Exist(ictn[obj.Tag]) Then
+          If Stat(ictn[obj.Tag]).Type = gb.File Or Stat(ictn[obj.Tag]).Type = gb.Link Then
+            obj.Picture = Image.Load(ictn[obj.Tag]).Stretch(20, 20).Picture
+          Endif
+        Endif
+      Endif
+    Next
+  Next
+
+  HSplit1.Layout = [1, 7]
+  Panel8.Layout = [1, 0, 2, 0, 1]
+  tobTextWrap.Value = True
+  AplyTheme()
+
+  flw.Add("hold", "flow")
+  Flow(flw)
+  ' If Settings["Last", ""] <> "" Then
+  '   If Exist(Settings["Last", ""]) Then
+  '     If Stat(Settings["Last", ""]).Type = gb.Directory Then
+  '       Menuapp("openDirectory", Settings["Last", ""])
+  '     Endif
+  '   Endif
+  ' Endif
+
+  bTime = False
+  If Exist(directoryWorking &/ "time.log") Then
+    iTime = CInt(File.Load(directoryWorking &/ "time.log"))
+  Else
+    iTime = 0
+  Endif
+  ActivitiIndication()
+  OverrideText.Value = True
+
+  IconsLoad(pnlTools)
+  IconsLoad(pnlEditor)
+
+  Me.Show()
+  Me.Maximized = True
+
+End
+
+Public Sub menuapp_Click()
+
+  Menuapp(Last.Tag)
+
+End
+
+Public Sub Menuapp(s As String, Optional sMod As String)
+  '' Que ya esta funcionando
+  ''Extraer texto de un PDF
+  ''Editar archivo content.opf (datos del libro)
+  ''Crear archivo EPUB
+
+  ''TODO:
+  ''Extraer imágenes de un PDF
+  ''Unir varios  PDF en uno
+  ''Dividir un PDF en Páginas
+  ''Mezclar PDFs
+  ''Poner marca de agua a PDF
+  ''Convertir PDF en HTML
+  ''Crear xhtml para ebook
+  ''Crear pdf booklet 4x4 y 2x2
+
+  Dim sfx As New String[]           ''Lista de archivos iniciales a procesar
+  Dim f As String
+  Dim i As Integer
+  Dim dvd As Boolean                '' Bandera de directorio es valido
+  Dim chp As New Collection
+  Dim ch As Variant
+  Dim xhm As String
+  Dim xf As String
+  Dim istx As New String[]
+  Dim imtx As New String[]
+  Dim itx As New String[]
+  Dim pmx As New String[]
+  Dim erx As New String[]
+  Dim im As String
+  Dim strJob As String
+  Dim str1 As String
+  Dim fpdf As String
+  Dim sFile As String
+  Dim k As Integer
+  Dim sNewProject As String
+  Dim xNewProject As New String[]
+  Dim xTmp As String[]
+  Dim listImages As String[]
+  Dim ImageJPG As String
+  Dim ImagePNG As String
+  Dim listFiles As String[]
+  Dim iHeight As Integer
+  Dim iWidth As Integer
+  Dim img2 As Image
+  Dim sectionFile As String
+
+  Dim sectionManifest As New JSONCollection
+  Dim tempAttributes As New Collection
+  Dim sectionHref As String
+  Dim sectionId As String
+  Dim sectionMediaType As String
+  Dim xml As XmlDocument
+  Dim tocText As String
+  Dim tocContent As String
+  Dim fileImage As String
+  Dim directoryLast As String
+
+  Select s
+
+    Case "quit"
+      Me.Close
+
+    Case "menu"
+
+      If pnlTree.Visible = True Then
+        Wait 0.01
+        pnlTree.Visible = False
+      Else
+        Wait 0.01
+        pnlTree.Visible = True
+      Endif
+
+    Case "openpdf"
+      ActivityLogger.Stop
+      sfx.Clear
+
+      sfx = dsk.FileChooser(, ["pdf"])
+
+      If sfx.Count > 0 Then
+
+        For Each f In sfx
+          flw.Clear
+          '' > Abrir el pdf inicial
+          rpdf = New PdfDocument(f)
+          flw.Add("raw", "flow")
+          Flow(flw)
+
+          'Endif
+          '' Habilitar los controles de tratamiento de PDF y de extracción de imagenes
+          directoryWorking = File.Dir(f) &/ Format(Now(), "yyyymmddhhnn")
+          directoryWorking &= "-" & Replace(String.LCase(vag.NoSymbols(File.BaseName(f))), " ", "-")
+
+          If Exist(directoryWorking &/ "time.log") Then
+            iTime = File.Load(directoryWorking &/ "time.log")
+          Else
+            iTime = 0
+          Endif
+
+          ActivityLogger.Start
+
+          CreatePaths(directoryWorking)
+
+          ' Desencriptando el PDF
+          pdfDecrypted = bat.PDFDecrypt(f, "/tmp/decripted.pdf")
+          ' Descomprimiendo el PDF
+          pdfUncompressed = bat.PDFDecompress(pdfDecrypted, "/tmp/uncompresed.pdf")
+          ' Quitanto texto que no interesa que salga
+          'pdfTextReplaced = bat.PDFReplace(unc, "www.allitebooks.com", "", "/tmp/textreplaced.pdf")
+
+          If Exist(pdfUncompressed) Then
+            If Stat(pdfUncompressed).Type = gb.File Then
+              If Exist(pdfWork) Then
+                Shell "rm '" & pdfWork & "'" Wait
+              Endif
+              Shell "cp '" & pdfUncompressed & "' '" & pdfWork & "'" Wait
+            Endif
+          Endif
+
+          If Exist(pdfWork) Then
+            xpdf = New PdfDocument(pdfWork)
+            bookLanguage = "spa"
+            Pages2Image(False)
+
+            bat.PdfExtractImages(pdfWork, directoryImagesBook)
+
+            LoadBookData()
+
+            flw.Add("cooked", "flow")
+            Flow(flw)
+
+          Endif
+        Next
+      Endif
+
+    Case "openproject"
+      ActivityLogger.Stop
+
+      directoryLast = ""
+      If Settings["Last", ""] <> "" Then
+        If Exist(Settings["Last", ""]) Then
+          If Stat(Settings["Last", ""]).Type = gb.Directory Then
+            directoryLast = Settings["Last", ""]
+          Endif
+        Endif
+      Endif
+
+      If sMod <> "" Then
+        directoryWorking = sMod
+      Else
+        directoryWorking = dsk.DirChooser(directoryLast)
+      Endif
+      If directoryWorking <> "" Then
+
+        If Exist(directoryWorking &/ "time.log") Then
+          iTime = File.Load(directoryWorking &/ "time.log")
+        Else
+          iTime = 0
+        Endif
+
+        ActivityLogger.Start
+
+        If Stat(directoryWorking).Type = gb.Directory Then
+          CreatePaths(directoryWorking)
+          '' If the directory contains the PDF file, but if it contains images then proceed to CREATE a PDF with these images.
+          If Exist(pdfWork) = False Then
+            xTmp = fil.ScanFiles(directoryImagesBook, ["jpeg"])
+            If xTmp.Count > 0 Then
+              xTmp.Sort
+              bat.Jpeg2Pdf(xTmp, pdfWork)
+            Endif
+          Endif
+          dvd = CheckPaths()
+          If dvd = True Then
+            Settings["Last"] = directoryWorking
+            Print "directorio valido"
+            'ctx.Clear
+            xpdf = New PdfDocument(pdfWork)
+            bookLanguage = "spa"
+            LoadBookData()
+            flw.Add("cooked", "flow")
+            Flow(flw)
+          Endif
+        Endif
+      Endif
+
+    Case "postprocessing"
+      If Exist(directoryWorking &/ "ibook") Then
+        'Desktop.Open(directoryWorking)
+        Shell "scantailor " & directoryWorking &/ "ibook"
+      Else
+        Message.Info(("There is no project directory defined") & gb.NewLine & ("You must first create a new project or load an existing one"))
+      Endif
+
+    Case "opendir"
+      If Exist(directoryWorking) Then
+        Desktop.Open(directoryWorking)
+      Else
+        Message.Info(("There is no project directory defined") & gb.NewLine & ("You must first create a new project or load an existing one"))
+      Endif
+
+      ' Create tha book files
+    Case "bookfiles"
+
+      chp.Clear
+      chp = CheckChapters()
+      sectionManifest.Clear
+
+      If chp.Count > 0 Then
+
+        For Each ch In chp
+          tocText = "Text/Section" & Format(i, "000") & ".xhtml"
+          tocContent = uty.Between(ch, "<h2>", "</h2>")
+          sectionFile = directoryEPUB &/ "OEBPS/Text/Section" & Format(i, "000") & ".xhtml"
+
+          If bookMetadata["sections"].Exist(sectionFile) Then
+            bookMetadata["sections"][sectionFile] = [tocText, tocContent]
+          Endif
+          xhm = epb.Xhtml(ch)
+
+          tempAttributes.Clear
+          tempAttributes.Add("Text/Section" & Format(i, "000") & ".xhtml", "href")
+          tempAttributes.Add("Section" & Format(i, "000") & ".xhtml", "id")
+          tempAttributes.Add("application/xhtml+xml", "media-type")
+
+          sectionManifest.Add(tempAttributes.Copy(), sectionFile)
+
+          File.Save(sectionFile, xhm)
+
+          Inc i
+        Next
+
+        epb.EpubContenOpfEditManifest(directoryEPUB &/ "OEBPS/content.opf", sectionManifest)
+        epb.EpubContentTocCreation(directoryEPUB &/ "OEBPS/toc.ncx", bookMetadata)
+
+      Endif
+
+      flw.Add("packing", "flow")
+      Flow(flw)
+
+    Case "bookzip" 'Packing
+      'Esta parte es para crear el EPUB comprimiendo todo
+      xf = epb.EpubPackager(directoryEPUB)
+
+      If Exist(xf) Then
+        Desktop.Open(xf)
+      Endif
+
+    Case "ia4"
+      strJob = User.Home &/ Format(Now(), "yyyymmddhhnnss") & ".pdf"
+
+      istx = fil.ScanFiles(directoryImagesBook &/ "out", ["tif"])
+      istx.Sort
+
+      If istx.Count > 0 Then
+        For Each im In istx
+          fpdf = bat.ImageConvert(im, "pdf")
+          If Exist(fpdf) Then
+            pmx.Add(fpdf)
+          Endif
+        Next
+
+        If pmx.Count > 0 Then
+          str1 = "pdfunite "
+          str1 &= pmx.Join(" ") & " "
+          str1 &= strJob
+          Print str1
+          Shell str1 Wait
+        Endif
+
+        If Exist(strJob) = True Then
+          Desktop.Open(strJob)
+        Else
+          erx.Add("PDF Creation error" & "\t" & strJob)
+        Endif
+
+        If erx.Count > 0 Then
+          Print "********* " & ("Errores") & " *********"
+          Print erx.Join("\n")
+        Endif
+
+      Endif
+
+    Case "ia6", "ia5"
+
+      strJob = User.Home &/ Format(Now(), "yyyymmddhhnnss") & ".pdf"
+      istx = fil.ScanFiles(directoryImagesBook &/ "out", ["tif"])
+      istx.Sort
+
+      itx = bat.ImageBook(istx)
+      Select s
+        Case "ia5"
+          imtx = bat.ImageMontage41(itx)
+        Case "ia6"
+          imtx = bat.ImageMontage81(itx)
+      End Select
+
+      If imtx.Count > 0 Then
+        For Each im In imtx
+          fpdf = bat.ImageConvert(im, "pdf")
+          If Exist(fpdf) Then
+            pmx.Add(fpdf)
+          Endif
+        Next
+
+        If pmx.Count > 0 Then
+          str1 = "pdfunite "
+          str1 &= pmx.Join(" ") & " "
+          str1 &= strJob
+          Print str1
+          Shell str1 Wait
+        Endif
+
+        If Exist(strJob) = True Then
+          Desktop.Open(strJob)
+        Else
+          erx.Add("PDF Creation error" & "\t" & strJob)
+        Endif
+
+        If erx.Count > 0 Then
+          Print "********* " & ("Errores") & " *********"
+          Print erx.Join("\n")
+        Endif
+
+      Endif
+
+      '
+      ' General tools for GUI ----------------
+    Case "back"
+
+      TreeView1.MoveCurrent()
+
+      If TreeView1.MoveAbove() Then
+        TreeView1.Selection = [TreeView1.Keys[TreeView1.Keys.Max]]
+      Else
+        TreeView1.Item.Selected = True
+      End If
+
+    Case "next"
+
+      TreeView1.MoveCurrent()
+
+      If TreeView1.MoveBelow() Then
+        TreeView1.Selection = [TreeView1.Keys[0]]
+      Else
+        TreeView1.Item.Selected = True
+      End If
+
+    Case "goto"
+
+    Case Else
+      If IsNumber(s) Then
+        If TreeView1.Exist(s) Then
+          TreeView1[s].Selected = True
+        Endif
+
+      Endif
+
+      ' ----------------------------------------
+
+      '   '' Create a copy of all images as PNG for ocr
+      ' Case "imagesOCR"
+      '   If Message.Warning(("All images in the OCR working directory will be overwritten"), ("Accept"), ("Cancel")) = 1 Then
+      '     For i = 0 To xpdf.Max
+      '       bat.PdfPage2Image(pdfWork, i, directoryImagesOCR &/ Format(i, "0000") & ".png")
+      '     Next
+      '   Endif
+      '
+      ' Case "image"
+      '   Pages2Image(True)
+      '
+      ' Case "text"
+      '   Pages2Text()
+      '   flw.Add("cooked", "flow")
+      '   Flow(flw)
+      '
+      ' Case "reset"
+      '
+      ' Case "watch"
+      '
+      ' Case "createParagraphImages"
+      '   listFiles = fil.ScanFiles(directoryImagesParagraphs, ["png"])
+      '   listFiles.Sort
+      '
+      '   For i = 0 To listFiles.Max
+      '     img = Image.Load(listFiles[i])
+      '     img.Gamma(-0.4)
+      '     img.Contrast(0.1)
+      '     img.Gray()
+      '     img.Erase(Color.White)
+      '     iWidth = 600
+      '     iHeight = img.Height * (iWidth / img.Width)
+      '     img2 = img.Stretch(iWidth, iHeight).Copy()
+      '     img2.Save(listFiles[i], 30)
+      '   Next
+      '
+      ' Case "new-project-from-scantailor-pages"
+      '
+      '   If Exist(directoryImagesBook &/ "out") Then
+      '     'istx = fil.RListFiles(ibk &/ "out", ["tif"])
+      '     xNewProject = fil.ScanFiles(directoryImagesBook &/ "out", ["tif"])
+      '     xNewProject.Sort
+      '     If xNewProject.Count > 0 Then
+      '
+      '       sNewProject = dsk.DirChooser()
+      '
+      '       If Exist(sNewProject) = False Then
+      '         Shell "mkdir -p '" & sNewProject & "'"
+      '       Endif
+      '
+      '       CreatePaths(sNewProject)
+      '
+      '       For Each im In xNewProject
+      '         sFile = bat.ImageConvert(im, "jpeg", Format(k, "0000"))
+      '         If Exist(sFile) Then
+      '           Shell "mv -f '" & sFile & "' '" & sNewProject &/ "ibook/" & File.Name(sFile) & "'"
+      '         Endif
+      '         Inc k
+      '       Next
+      '     Endif
+      '   Endif
+      '
+      ' Case "ocr-crop"
+      '   istx = fil.ScanFiles(directoryImagesOCR, ["png"])
+      '   istx.Sort
+      '   For Each fileImage In istx
+      '     bat.ImageTrim(fileImage)
+      '   Next
+
+  End Select
+
+End
+
+Private Function CheckChapters() As Collection
+
+  Dim chp As New Collection
+  Dim st As String
+  Dim ch As String
+  Dim i As Integer
+  Dim sfx As String[]
+  Dim txf As String
+  Dim sv As String
+  Dim ti As String
+  Dim ct As String
+  Dim sImg As String
+
+  sfx = fil.ScanFiles(directoryTextBook, ["html"])
+  sfx.Sort
+
+  For Each txf In sfx
+    st &= File.Load(txf) & "\n"
+  Next
+  st = Replace(st, "\x0C", "\n")
+  st = Replace(st, "\t", "[:::TAB:::]")
+  st = Replace(st, "<h2>", "\t<h2>")
+
+  chp.Clear
+  For Each ch In Split(st, "\t")
+    If i > 0 Then
+      ti = uty.Between(ch, "<h2>", "</h2>")
+      ct = uty.Between(ch, "</h2>")
+      'ct = Replace(ct, "<p>", "")
+      'ct = Replace(ct, "</p>", "")
+      'ct = vag.UnTager(ct)
+      sv = Replace(ct, "[:::TAB:::]", "\t")
+      'sv = vag.ArrangeParagraph(sv)
+      'sv = vag.Paragraph(sv, "html5")
+      'sv = vag.ReTager(sv)
+      sv = Replace(sv, "file:" & directoryImagesParagraphs & "/", "../Images/")
+      ti = "<h2>" & ti & "</h2>\n"
+      chp.Add(ti & sv, "chapter:" & CStr(i))
+    Endif
+    Inc i
+  Next
+
+  Return chp
+
+End
+
+Private Sub Pages2Image(sMode As Boolean)
+
+  Dim i As Integer
+  Dim e As Integer
+  Dim imageHighResolution As String
+  Dim imageLowResolution As String
+
+  Select sMode
+    Case False
+      ProgressBar1.Visible = True
+      For i = 1 To xpdf.Max
+        imageLowResolution = directoryImagesThumbnails &/ Format(i, "0000") & ".jpeg"
+        img = xpdf[i].Render(,,,,, 72)
+        img.Save(imageLowResolution, 50)
+        ProgressBar1.Value = i / xpdf.Count
+        Wait 0.01
+      Next
+
+      For i = 0 To xpdf.Max ' - 1
+        If Exist(imageLowResolution) = True Then
+          Inc e
+        Endif
+      Next
+    Case True
+      ProgressBar1.Visible = True
+      For i = 0 To xpdf.Max
+        imageHighResolution = directoryImagesBook &/ Format(i, "0000") & ".jpeg"
+        Label1.Text = ("Extracting the pages as images") & " (" & CStr(i) & ":" & CStr(xpdf.Max) & ")"
+        If Exist(imageHighResolution) = False Then
+          img = xpdf[i].Render(,,,,, 300)
+          img.Save(imageHighResolution, 50)
+          If Exist(imageHighResolution) Then
+            ProgressBar1.Value = (i + 1) / xpdf.Count
+            Wait 0.01
+          Endif
+        Endif
+      Next
+
+      For i = 0 To xpdf.Max ' - 1
+        If Exist(imageHighResolution) = True Then
+          Inc e
+        Endif
+      Next
+
+  End Select
+
+  Label1.Text = ("Extracted pages") & " (" & CStr(e) & ":" & CStr(xpdf.Max) & ")"
+  ProgressBar1.Visible = False
+
+End
+
+Private Sub Pages2Text()
+
+  Dim i As Integer
+  Dim e As Integer
+  Dim textFile As String
+  Dim textContent As String
+
+  ProgressBar1.Visible = True
+  For i = 0 To xpdf.Max
+    textFile = directoryTextBook &/ Format(i, "0000") & ".html"
+    If Exist(textFile) = False Or OverrideText.Value Then
+      textContent = vag.ArrangeParagraph(TexEx(i))
+      File.Save(textFile, textContent)
+    Endif
+
+    Label1.Text = ("Extracting the text from the pages") & " (" & CStr(i) & ":" & CStr(xpdf.Count) & ")"
+    ProgressBar1.Value = i / xpdf.Count
+    Wait 0.01
+
+  Next
+  flw.Add("cooked", "flow")
+  Flow(flw)
+  Label1.Text = ("Texto extraídos") & " (" & CStr(e) & ":" & CStr(xpdf.Count) & ")"
+  ProgressBar1.Visible = False
+
+End
+
+Private Sub CheckPaths() As Boolean
+
+  Dim pth As String
+  Dim bol As Boolean
+
+  bol = True
+
+  For Each pth In [directoryImagesThumbnails, directoryImagesBook, directoryTextBook, directoryImagesBook, directoryImagesBook, pdfWork]
+
+    If Exist(pth) = False
+      Message.Info(("El directorio seleccionado no es apto"))
+      bol = False
+      Break
+    Endif
+  Next
+
+  Return bol
+
+End
+
+Private Sub CreatePaths(bas As String)
+
+  Dim xdr As String
+
+  directoryEPUB = bas &/ "epub"
+  directoryImagesThumbnails = bas &/ "itmp"
+  directoryImagesBook = bas &/ "ibook"
+  directoryTextBook = bas &/ "tbook"
+  directoryImagesOCR = bas &/ "iocr"
+  directoryImagesParagraphs = bas &/ "ipags"
+  pdfWork = bas &/ "tmp.pdf"
+
+  For Each xdr In [bas, directoryEPUB, directoryImagesBook, directoryImagesOCR, directoryImagesParagraphs, directoryImagesThumbnails, directoryTextBook]
+    If Exist(xdr) = False Then
+      Shell "mkdir -p '" & xdr & "'" Wait
+    Endif
+  Next
+
+  epb.EpubStructureMaker(directoryEPUB)
+
+End
+
+' Private Function CreateContentFile(dx As Collection) As String
+'
+'   Dim str As String
+'
+'   str = epb.EpubContentOpf(dx)
+'
+'   File.Save(epu &/ "content.opf", str)
+'
+'   If Exist(epu &/ "content.opf") Then
+'     Return epu &/ "content.opf"
+'   Else
+'     Return ""
+'   Endif
+'
+' End
+
+'' Carga de los controles necesarios para editar los datos referentes al conten
+'' ido del libro. Por ejemplo el autor, la editorial, la fecha etc.
+'' Se trata de los datos que finalmente iran a parar al archivo content.opf del
+'' archivo EPUB.
+
+Private Sub LoadBookData()
+
+  Dim xd As New XmlDocument
+  Dim nod As XmlNode
+  Dim str As String
+  Dim att As XmlNode
+  Dim chi As XmlNode
+  Dim met As XmlNode
+  Dim matt As XmlNode
+  Dim tg As String
+  Dim vrt As Variant
+  Dim imageLowResolution As String
+  Dim imageHighResolution As String
+  Dim i As Integer
+  Dim pix As Picture
+  Dim lfx As String[]
+  Dim fn As String
+  Dim xc As New Collection 'String[]
+  Dim cc As New Collection ' String[]
+  Dim ic As New Collection ' String[]
+  Dim tsec As String
+  Dim fsec As String
+  Dim xp As Integer
+  Dim fsx As New String[]
+  Dim imf As String
+  Dim sPage As String
+  Dim sBase As String
+  Dim imageHeight As Integer
+  Dim imageWidth As Integer
+  Dim imageForOCR As String
+  Dim textOCR As String
+  Dim textContent As String
+  Dim img As Image
+  Dim textFile As String
+
+  '' List of images in each page
+  ListOfImagesPharagraph()
+
+  bookMetadata = epb.ContentData()
+  'Agregando la informacion de "manifiest"
+  lfx = fil.ScanFiles(directoryEPUB &/ "OEBPS", ["xhtml", "css", "png", "jpeg", "jpg"])
+  If lfx.Count > 0 Then
+    lfx.Sort
+    For Each fn In lfx
+      Select File.Ext(fn)
+        Case "xhtml"
+          For Each tsec In ["cover", "sinopsis", "index", "title", "quotes", "info", "foreword", "proverbs", "preface", "postcript", "permissions", "dedication", "intro", "section", "thanks", "references", "author", "notes"]
+            If InStr(File.BaseName(fn), tsec) > 0 Then
+              fsec = tsec
+              Break
+            Else
+              fsec = "none"
+            Endif
+          Next
+          xc.Add(sec, fn)
+        Case "css"
+          cc.Add("style", fn)
+        Case "jpeg", "jpg", "png"
+          ic.Add(File.Ext(fn), fn)
+      End Select
+    Next
+    bookMetadata.Add(xc, "sections")
+    bookMetadata.Add(cc, "styles")
+    bookMetadata.Add(ic, "images")
+  Endif
+
+  ' Lo primero es saber si ya existe el archivo content.xml
+  If Exist(directoryEPUB &/ "OEBPS/content.opf") Then
+    ' Cargo los datos desde este archivo y creo los controles
+    xd.Open(directoryEPUB &/ "OEBPS/content.opf")
+
+  Else
+    'Creo un archivo content.opf solo con la estructura básica
+    str = epb.EpubContentOpfCreation(bookMetadata)
+    File.Save(directoryEPUB &/ "OEBPS/content.opf", str)
+    xd.Open(directoryEPUB &/ "OEBPS/content.opf")
+  Endif
+
+  For Each nod In xd.GetElementsByTagName("package", gb.IgnoreCase, 2)
+    For Each att In nod.Attributes
+      Print nod.Name
+      Print att.Name & ": " & att.TextContent
+    Next
+    For Each chi In nod.Children
+      Select chi.Name
+
+        Case "metadata"
+          For Each met In chi.Children
+            If InStr(met.Name, "dc:") > 0 Then
+              Print "Tag." & met.Name & ": " & met.TextContent
+              tg = Replace(met.Name, "dc:", "")
+              If bookMetadata.Exist(tg) Then
+                bookMetadata[tg][2] = met.Value
+              Endif
+
+              For Each matt In met.Attributes
+                Print "\t" & matt.Name & ": " & matt.TextContent
+              Next
+            Endif
+          Next
+
+          ' Case "manifest"
+
+          ' Case "guide"
+
+      End Select
+
+    Next
+  Next
+
+  TreeView1.Clear
+  TreeView1.Add("book", bookMetadata["title"][2], Picture["icon:/16/book"])
+  TreeView1.Add("meta", ("Content"), Picture["icon:/16/book"], "book")
+
+  For Each vrt In bookMetadata
+    TreeView1.Add(bookMetadata.Key, vrt[2], Picture["icon:/16/attach"], "meta")
+  Next
+
+  ' Luego cargo las páginas
+  TreeView1.Add("pages", ("Pages"), Picture["icon:/16/text"], "book")
+  For i = 0 To xpdf.Max
+    imageLowResolution = directoryImagesThumbnails &/ Format(i, "0000") & ".jpeg"
+    'imageHighResolution = directoryImagesBook &/ Format(i, "0000") & ".jpeg"
+    imageForOCR = directoryImagesBook &/ Format(i, "0000") & ".png"
+    textFile = directoryTextBook &/ Format(i, "0000") & ".html"
+
+    '' Exist Thumbnail?
+    If Exist(imageLowResolution) = False Then
+      img = xpdf[i].Render(,,,,, 72)
+      img.Save(imageLowResolution, 25)
+
+    Endif
+    '' Is needed a image to do OCR?
+    If xpdf[i].Text = "" Then
+      If Exist(imageForOCR) = False Then
+        If Exist(bat.PdfPage2Image(pdfWork, i, imageForOCR)) Then
+          textOCR = bat.PngOcrText(imageForOCR, "spa")
+          If textOCR <> "" Then
+            textContent = vag.XmlValidate(textOCR, "utf-8")
+            textContent = vag.Paragraph(textContent, "html5")
+            File.Save(textFile, textContent)
+          Else
+            Main.lgg(("Error trying to extract text from image") & ". " & "[" & CStr(i) & "]")
+          Endif
+        Else
+          Main.lgg(("Error trying to extract image from page") & ". " & File.Name(xpdf) & "[" & CStr(i) & "]")
+        Endif
+      Endif
+
+    Endif
+
+    ' If Exist(imageLowResolution) = False Then
+    '   If Exist(imageHighResolution) Then
+    '     img = Image.Load(imageHighResolution)
+    '     imageWidth = 256
+    '     imageHeight = (imageWidth * img.H) / img.W
+    '
+    '     img.Stretch(imageWidth, imageHeight).Save(imageLowResolution, 25)
+    '
+    '   Endif
+    ' Endif
+
+    If Exist(imageLowResolution) Then
+      If Application.DarkTheme Then
+        pix = Image.Load(imageLowResolution).Stretch(48, 56).Erase(Color.White).Invert(False).Picture
+      Else
+        pix = Image.Load(imageLowResolution).Stretch(48, 56).Picture
+      Endif
+    Else
+      pix = Picture["icon:/16/text-fill"]
+    Endif
+
+    TreeView1.Add(CStr(i), Format(i, "0000"), pix, "pages")
+
+    ' ' tmx.Add(ilq, "ilq")
+    ' ' type = xmg.GetVar("Page/1/type", exd &/ "book.xml")
+    ' ' tmx.Add(type, "type")
+    ' ' tmx.Add(i, "page")
+    ' '
+    ' ' ctx.Add(tmx.Copy(), CStr(i))
+
+  Next
+
+  TreeView1["book"].Expanded = True
+  TreeView1["pages"].Expanded = True
+
+  For xp = 0 To TreeView1["pages"].Count - 1
+    If TreeView1.Exist(CStr(xp)) Then
+      TreeView1[CStr(xp)].Selected = True
+      Break
+    Endif
+  Next
+
+End
+
+Public Sub ListOfImagesPharagraph()
+
+  Dim fsx As String[]
+  Dim imf As String
+  Dim sBase As String
+  Dim sPage As Integer
+
+  listImagesParagraphs.Clear
+
+  fsx = fil.ScanFiles(directoryImagesParagraphs, ["png"])
+
+  If fsx.Count > 0 Then
+    fsx.Sort
+    For Each imf In fsx
+      sBase = File.Name(imf)
+      If InStr(sBase, "-") > 0 Then
+        sPage = CInt(Split(sBase, "-")[1])
+      Else
+        sPage = CInt(File.BaseName(imf))
+      Endif
+
+      If listImagesParagraphs.Exist(sPage) = False Then
+        listImagesParagraphs.Add([imf], sPage)
+      Else
+        listImagesParagraphs[sPage].Add(imf)
+      Endif
+
+    Next
+  Endif
+
+End
+
+' Private Sub LoadThumbs()
+'
+'   Dim i As Integer
+'   Dim ilq As String
+'   Dim r As Integer
+'   Dim tmx As New Collection         '' Lista temporal con datos de cada página
+'   Dim type As Variant
+'
+'   GridView1.Mode = Select.Single
+'   GridView1.Columns.Count = 2
+'   GridView1.Rows.Count = 0
+'   GridView1.Rows.Count = xpdf.Count
+'   GridView1.Rows.Height = 52
+'   GridView1.Columns[0].Width = 75
+'
+'   ctx.Clear
+'
+'   For i = 1 To xpdf.Count
+'     r = i - 1
+'     GridView1[r, 0].Text = CStr(i)
+'     GridView1[r, 1].Text = "."
+'
+'     ilq = itm &/ Format(i, "0000") & ".jpeg"
+'
+'     tmx.Add(ilq, "ilq")
+'     type = xmg.GetVar("Page/1/type", exd &/ "book.xml")
+'     tmx.Add(type, "type")
+'     tmx.Add(i, "page")
+'
+'     ctx.Add(tmx.Copy(), CStr(i))
+'
+'     If Exist(ilq) Then
+'
+'       GridView1[r, 0].Picture = Image.Load(ilq).Stretch(32, 48).Picture
+'     Else
+'       GridView1[r, 0].Picture = Picture["icon:/32/cancel"]
+'     Endif
+'   Next
+'
+'   GridView1.Select(0, 1)
+'
+' End
+
+Private Sub Flow(c As Collection)
+
+  Dim ctr As Object
+
+  If c.Exist("flow") Then
+    Select c["flow"]
+        '------------------------------
+      Case "hold"
+        For Each ctr In pnlIcons.Children
+          If Object.Type(ctr) = "ToolButton" Then
+            Select ctr.Tag
+              Case "quit", "options", "help", "open", "directory", "scantailor"
+                ctr.Enabled = True
+              Case "import", "directory", "scantailor"
+                ctr.Enabled = True
+              Case "text", "image", "book"
+                ctr.Enabled = False
+            End Select
+          Endif
+        Next
+
+        pnlIconsPage.Enabled = False
+
+        '------------------------------
+      Case "raw"
+        For Each ctr In pnlIcons.Children
+          If Object.Type(ctr) = "ToolButton" Then
+            Select ctr.Tag
+              Case "import", "quit", "options", "help", "open", "directory", "scantailor"
+                ctr.Enabled = True
+              Case "book"
+                ctr.Enabled = False
+              Case "text", "image"
+                ctr.Enabled = True
+            End Select
+          Endif
+        Next
+        pnlIconsPage.Enabled = True
+        '------------------------------
+      Case "cooked"
+        For Each ctr In pnlIcons.Children
+          If Object.Type(ctr) = "ToolButton" Then
+            Select ctr.Tag
+              Case "text", "book", "import", "image", "quit", "options", "help", "open", "directory", "scantailor"
+                ctr.Enabled = True
+            End Select
+          Endif
+        Next
+        pnlIconsPage.Enabled = True
+        '------------------------------
+      Case "packing"
+        For Each ctr In pnlIcons.Children
+          If Object.Type(ctr) = "ToolButton" Then
+            Select ctr.Tag
+              Case "zip"
+                ctr.Enabled = True
+            End Select
+          Endif
+        Next
+        pnlIconsPage.Enabled = True
+    End Select
+  Endif
+
+End
+
+Public Sub AImage_DblClick()
+
+  Dim obj As Object
+
+  obj = Last
+
+  Select sec
+
+    Case "cover", "back", "pre-ini", "pre-end", "content-ini", "content-end", "index-ini", "index-end"
+      If dmx.Exist(obj.Name) Then
+        dmx[obj.Name]["type"] = sec
+
+        Label1.Text = dmx[obj.Name]["type"]
+        Label1.Refresh
+      Endif
+
+  End Select
+
+End
+
+Public Sub Section_Click()
+
+  Dim obj As Object
+  Dim msg As String
+
+  obj = Last
+
+  If InStr(obj.Tag, "\t") > 0 Then
+
+    Select Split(obj.Tag, "\t")[0]
+      Case ".", "cover", "back", "pre-ini", "pre-end", "content-ini", "content-end", "index-ini", "index-end"
+        sec = Split(obj.Tag, "\t")[0]
+        msg = Split(obj.Tag, "\t")[1]
+    End Select
+    'Mensaje
+    Label1.Text = msg
+    Label1.Refresh
+  Endif
+
+End
+
+' Public Sub GridView1_Select()
+'
+'   Dim ilq As String
+'   Dim ihq As String
+'   '  Dim i As Integer
+'   Dim pix As PictureBox
+'
+'   ScrollView1.Children.Clear
+'
+'   ick = CInt(GridView1[GridView1.Row, 0].Text)
+'
+'   ilq = itm &/ Format(ick, "0000") & ".jpeg"
+'   ihq = ibk &/ Format(ick, "0000") & ".jpeg"
+'   txt = tbk &/ Format(ick, "0000") & ".txt"
+'
+'   If Exist(txt) Then
+'     TextEditor1.Text = File.Load(txt)
+'     TextLabel1.Text = File.Load(txt)
+'   Else
+'     If txt = bat.PDF2Text(wrk, ick, txt) Then
+'       If Exist(txt) Then
+'         TextEditor1.Text = File.Load(txt)
+'         TextLabel1.Text = File.Load(txt)
+'       Endif
+'     Endif
+'   Endif
+'
+'   If Exist(ilq) Then
+'     pix = New PictureBox(ScrollView1) As "pix"
+'     With pix
+'       .Expand = True
+'       If Exist(ihq) = False Then
+'         If ihq = bat.PDFPage2Image(wrk, ick, ibk, "jpeg") Then
+'           .Picture = Picture.Load(ihq)
+'         Else
+'           .Picture = Picture.Load(ilq)
+'         Endif
+'       Else
+'         .Picture = Picture.Load(ihq)
+'       Endif
+'       .mode = PictureBox.Contain
+'     End With
+'   Endif
+'
+' End
+
+' Public Sub GridView1_MouseDown()
+'
+'   Dim strKey As String
+'   Dim MN, mn0, mn1, mn2, mn3, mn4, mn5, mn6, mn7, mn8, mn9 As Menu
+'
+'   Select Mouse.Button
+'     Case 3
+'       strKey = GridView1[GridView1.Row, 0].Text
+'
+'       If Mouse.Right Then
+'         MN = New Menu(Me)
+'
+'         With mn0 = New Menu(MN) As "Menu"
+'           .Caption = ("Limpiar")
+'           .Tag = "."
+'         End With
+'
+'         With mn1 = New Menu(MN) As "Menu"
+'           .Caption = ("Portada")
+'           .Tag = "<cover>"
+'         End With
+'
+'         With mn2 = New Menu(MN) As "Menu"
+'           .Caption = ("Contratapa")
+'           .Tag = "<back>"
+'         End With
+'
+'         With mn3 = New Menu(MN) As "Menu"
+'           .Caption = ("Prliminares, inicio")
+'           .Tag = "<pre>"
+'         End With
+'
+'         With mn4 = New Menu(MN) As "Menu"
+'           .Caption = ("Prliminares, fin")
+'           .Tag = "</pre>"
+'         End With
+'
+'         With mn5 = New Menu(MN) As "Menu"
+'           .Caption = ("Índice, inicio")
+'           .Tag = "<index>"
+'         End With
+'
+'         With mn6 = New Menu(MN) As "Menu"
+'           .Caption = ("Índice, fin")
+'           .Tag = "</index>"
+'         End With
+'
+'         With mn7 = New Menu(MN) As "Menu"
+'           .Caption = ("Contenido, inicio")
+'           .Tag = "<content>"
+'         End With
+'
+'         With mn8 = New Menu(MN) As "Menu"
+'           .Caption = ("Contenido, fin")
+'           .Tag = "</content>"
+'         End With
+'
+'         With mn9 = New Menu(MN) As "Menu"
+'           .Caption = ("Descartar")
+'           .Tag = "<skip>"
+'         End With
+'
+'         MN.Popup
+'       Endif
+'
+'   End Select
+'
+' End
+
+' Public Sub Menu_Click()
+'
+'   Dim strKey As String
+'
+'   Select Case Last.Tag
+'     Case ".", "<cover>", "<back>", "<pre>", "</pre>", "<content>", "</content>", "<index>", "</index>", "<skip>"
+'       GridView1[GridView1.Row, 1].Text = Last.Tag
+'
+'       strKey = CStr(GridView1.Row)
+'
+'       ctx[strKey]["type"] = Last.Tag
+'
+'       xmg.EditXml3(exd &/ "book.xml", ctx, False)
+'
+'   End Select
+'
+' End
+
+' Public Sub ScrollBar1_Change()
+'
+'   Dim H As Float
+'   Dim G As Integer
+'
+'   G = GridView1.Rows.Height * GridView1.Rows.Count
+'
+'   Select ScrollBar1.Value
+'     Case 0
+'       H = 0
+'     Case Else
+'       H = ScrollBar1.Value * G / 100
+'   End Select
+'
+'   If scr = True Then
+'     GridView1.Scroll(0, CInt(H))
+'   Endif
+'
+' End
+
+' Public Sub GridView1_Scroll()
+'
+'   Dim H As Float
+'   Dim G As Integer
+'
+'   G = GridView1.Rows.Height * GridView1.Rows.Count
+'
+'   Print GridView1.ScrollY
+'
+'   Select GridView1.ScrollY
+'     Case 0
+'       H = 0
+'     Case GridView1.ScrollHeight - GridView1.ClientHeight
+'       H = 100
+'     Case Else
+'       H = (GridView1.ScrollY * 100) / G
+'   End Select
+'
+'   If scr = False Then
+'     ScrollBar1.Value = CInt(H)
+'   Endif
+'
+' End
+
+Public Sub ScrollBar1_MouseUp()
+
+  scr = False
+
+End
+
+Public Sub ScrollBar1_MouseDown()
+
+  scr = True
+
+End
+
+Public Sub menueditor_Click()
+
+  MenuEditor(Last.Tag)
+
+End
+
+Public Sub MenuEditor(sTag As String)
+
+  Dim str As String
+  Dim tx As String
+  Dim k As String
+  'Dim strShCut As String
+  Dim sMod As String
+  Dim iCol As Integer
+  Dim sLeft As String
+  Dim sRight As String
+  Dim r As Integer
+  Dim strTab As String
+  Dim stx As New String[]
+  Dim i As Integer
+  Dim f As Integer
+
+  Select sTag
+
+    Case "ctrl+c", "copy"
+      strCopyText = TextEditor1.SelectedText
+
+    Case "xcode"
+      str = TextEditor1[intIniLine].Text
+      TextEditor1[intIniLine].Text = ChangeTag(str, sTag)
+
+    Case "editor-mode"
+      TextEditorLoad()
+
+    Case "ctrl+s", "save"
+      TextEditor1.Save(pageTextFile)
+      TextLabelLoad()
+      RefreshWebview()
+      RefreshImagesParagraphPanel()
+
+    Case "paste"
+      EditorPasteText()
+
+    Case "text"
+      If xmg.GetVar("Output.Override-Files", Main.apc) Then
+        tx = TexEx(pageIndex, True)
+      Else
+        tx = TexEx(pageIndex, False)
+      Endif
+      Label1.Text = ("Successful extraction") & "[" & CStr(pageIndex) & "]"
+
+    Case "hide"
+
+      str = TextEditor1[intIniLine].Text
+      TextEditor1[intIniLine].Text = HideToggle(str)
+
+    Case "html"
+      'XhtmlCleaner(strTextFile)
+      XhtmlCleaner(pageTextFile)
+
+    Case "ctrl+1", "ctrl+2", "ctrl+3", "ctrl+4", "ctrl+5", "ctrl+6", "ctrl+p"
+      str = TextEditor1[intPosLine].Text
+      k = Split(sTag, "+")[1]
+      Select k
+        Case "p"
+          TextEditor1[intPosLine].Text = ChangeTag(str, "p")
+        Case "h"
+          TextEditor1[intPosLine].Text = ChangeTag(str, "pre")
+        Case "1", "2", "3", "4", "5", "6"
+          TextEditor1[intPosLine].Text = ChangeTag(str, "h" & k)
+      End Select
+
+    Case "ctrl+h"  ' code
+
+      If TextEditor1.SelectionLine < TextEditor1.Line Then
+        For r = TextEditor1.SelectionLine To TextEditor1.Line
+          Select r
+            Case TextEditor1.SelectionLine
+              TextEditor1[r].Text = "<pre>" & TextEditor1[r].Text
+            Case TextEditor1.Line
+              TextEditor1[r].Text = TextEditor1[r].Text & "</pre>"
+          End Select
+        Next
+      Else
+        If TextEditor1.SelectionLine = TextEditor1.Line Then
+          TextEditor1[TextEditor1.SelectionLine].Text = "<pre>" & TextEditor1[TextEditor1.SelectionLine].Text & "</pre>"
+        Endif
+      Endif
+
+    Case "ctrl+t"
+      strTab = "<table>\n"
+      For r = TextEditor1.SelectionLine To TextEditor1.Line
+        stx.Clear
+        If InStr(TextEditor1[r].Text, ":") > 0 Then
+          stx = Split(TextEditor1[r].Text, ":")
+        Else
+          stx.Add(TextEditor1[r].Text)
+        Endif
+        Select r
+          Case TextEditor1.SelectionLine
+            strTab = "<table><tr>"
+            For Each tx In stx
+              strTab &= "<th>" & tx & "</th>"
+            Next
+            strTab &= "</tr>"
+            TextEditor1[r].Text = strTab
+          Case TextEditor1.Line
+            strTab = "<tr>"
+            For Each tx In stx
+              strTab &= "<td>" & tx & "</td>"
+            Next
+            strTab &= "</tr></table>"
+            TextEditor1[r].Text = strTab
+          Case Else
+            strTab = "<tr>"
+            For Each tx In stx
+              strTab &= "<td>" & tx & "</td>"
+            Next
+            strTab &= "</tr>"
+            TextEditor1[r].Text = strTab
+        End Select
+      Next
+
+    Case "ctrl+l"
+      str = TextEditor1[intPosLine].Text
+      TextEditor1[intPosLine].Text = ChangeTag(str, "li")
+
+    Case "ctrl+m"
+      If TextEditor1.SelectionLine < TextEditor1.Line Then
+        i = TextEditor1.SelectionLine
+        f = TextEditor1.Line
+      Else
+        If TextEditor1.SelectionLine > TextEditor1.Line Then
+          f = TextEditor1.SelectionLine
+          i = TextEditor1.Line
+        Else
+          i = TextEditor1.SelectionLine
+          f = i 'TextEditor1.Line
+        Endif
+      Endif
+
+      If i < f Then
+        If (f - i) >= 1 Then
+          For r = i To f
+            Select r
+              Case i
+                TextEditor1[r].Text = "<ul><li>" & TextEditor1[r].Text & "</li>"
+              Case f
+                TextEditor1[r].Text = "<li>" & TextEditor1[r].Text & "</li></ul>"
+              Case Else
+                TextEditor1[r].Text = "<li>" & TextEditor1[r].Text & "</li>"
+            End Select
+          Next
+        Endif
+      Else
+        TextEditor1[i].Text = "<ul><li>" & TextEditor1[i].Text & "</li></ul>"
+      Endif
+
+    Case "ctrl+j"
+      If TextEditor1.SelectionLine < TextEditor1.Line Then
+        i = TextEditor1.SelectionLine
+        f = TextEditor1.Line
+      Else
+        If TextEditor1.SelectionLine > TextEditor1.Line Then
+          f = TextEditor1.SelectionLine
+          i = TextEditor1.Line
+        Else
+          i = TextEditor1.SelectionLine
+          f = i 'TextEditor1.Line
+        Endif
+      Endif
+
+      If i < f Then
+        str = TextEditor1.SelectedText
+        TextEditor1[i].Text = "<p>" & Replace(str, "\n", " ") & "</p>"
+        If (f - i) >= 1 Then
+          For r = (i + 1) To f
+            TextEditor1[r].Text = ""
+          Next
+
+        Endif
+      Endif
+
+    Case "ctrl+b", "ctrl+i", "ctrl+u"
+      str = ""
+      str = TextEditor1.SelectedText
+
+      If String.Len(str) > 0 Then
+        iCol = TextEditor1.SelectionColumn
+        sMod = Split(sTag, "+")[1]
+
+        sLeft = String.Mid(TextEditor1[intPosLine].Text, 1, iCol)
+        sRight = String.Mid(TextEditor1[intPosLine].Text, 1 + iCol + String.Len(str))
+        TextEditor1[intPosLine].Text = sLeft & "<" & sMod & ">" & str & "</" & sMod & ">" & sRight
+        TextEditor1.Select(iCol + 3, intPosLine, 1 + iCol + String.Len(str) + 2, intPosLine)
+      Endif
+
+    Case "wrap"
+      Select bolEdiWrap
+        Case True
+          TextEditor1.Wrap = False
+          bolEdiWrap = False
+        Case False
+          TextEditor1.Wrap = True
+          bolEdiWrap = True
+      End Select
+
+    Case "refresh"
+      str = TextEditor1.Text
+      str = vag.ArrangeParagraph(str)
+      TextEditor1.Text = str
+
+    Case "check"
+      If Exist(pageTextFile) Then
+        str = File.Load(pageTextFile)
+        str = vag.ConvertPath(str)
+        Print str
+      Endif
+
+    Case "pgdown"
+      Menuapp("next")
+
+    Case "pgup"
+      Menuapp("back")
+
+  End Select
+
+End
+
+Private Function TexEx(p As Integer, Optional ovr As Boolean) As String
+
+  Dim ptx As String
+  Dim pageContent As String
+  Dim pageOCR As String
+  Dim pageText As String
+  Dim xPdf As New PdfDocument(pdfWork)
+  Dim pageFilePNG As String
+  Dim img As Image
+  Dim pageFileJPEG As String
+
+  pageContent = xPdf[p].Text
+
+  If String.Left(pageContent, 1) = "\x0C" Or pageContent = "" Then
+    pageFilePNG = Format(p, "0000") & ".png"
+    pageFileJPEG = Format(p, "0000") & ".jpeg"
+    If Exist(directoryImagesOCR &/ pageFilePNG) = False Then
+      img = xpdf[p].Render()
+      img.Gray
+      img.Gamma(-0.3)
+      img.Brightness(0.2)
+      img.Contrast(0.3)
+      img.Save(directoryImagesOCR &/ pageFilePNG, 100)
+    Endif
+
+    If Exist(directoryImagesOCR &/ pageFilePNG) Then
+      pageText = bat.PNGOCRText(directoryImagesOCR &/ pageFilePNG, "spa")
+    Else
+      pageText = ""
+    Endif
+
+  Else
+    pageText = pageContent
+  Endif
+
+  Return pageText
+
+End
+
+Public Sub TextEditorLoad()
+
+  If Exist(pageTextFile) = True Then
+    TextEditor1.Load(pageTextFile)
+  Endif
+
+End
+
+Public Sub TextLabelLoad()
+
+  Dim str As String
+  Dim sContent As String
+
+  If Exist(pageTextFile) = True Then
+
+    str = Replace(File.Load(pageTextFile), "../Images", directoryImagesParagraphs)
+
+    sContent = "<html><head></head><body style=\"color: " & Main.sForeground & "; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;\">\n"
+    sContent &= str & "\n"
+    sContent &= "</body></html>"
+    WebView1.HTML = sContent
+
+  Endif
+
+End
+
+Public Sub EditorPasteText()
+
+  Dim strPaste As String
+
+  If Clipboard.Type = Clipboard.Text Then
+    strPaste = Clipboard.Paste("text/plain")
+    Print strPaste
+  Endif
+  TextEditor1[intIniLine].Text = strBefText & strPaste & strAftText
+
+End
+
+Public Function HideToggle(str As String) As String '' Funcion que oculta una linea de codigo HTML o la muestra en caso que ya lo este.
+
+  Dim strOut As String
+
+  If InStr(str, "<!---") > 0 Then
+
+    strOut = Replace(str, "<!---", "")
+    strOut = Replace(strOut, "--->", "")
+  Else
+    strOut = "<!---" & str & "--->"
+  Endif
+  Return strOut
+
+End
+
+Public Sub XhtmlCleaner(strFile As String) As String
+
+  Dim stx As New String[]
+  Dim strImg As String
+  Dim int As Integer
+  Dim intK As Integer
+  Dim strImgRen As String
+
+  If File.Ext(strFile) = "xhtml" Then
+    stx = Split(File.Load(strFile), "\n")
+    intK = 0
+    For int = 0 To stx.Max
+      strimg = ""
+      stx[int] = Replace(stx[int], "<p class=\"calibre1\">", "<p>")
+      stx[int] = Replace(stx[int], " class=\"calibre4\"", "")
+      stx[int] = Replace(stx[int], "<i class=\"calibre2\">", "<i>")
+      stx[int] = Replace(stx[int], "<b class=\"calibre3\">", "<b>")
+      stx[int] = Replace(stx[int], "<body class=\"calibre\">", "<body>")
+
+      If InStr(stx[int], "<img src=") > 0 Then
+
+        Inc intK
+
+        strImg = uty.Between(stx[int], "<img src=\"", "\"")
+        strImgRen = File.BaseName(strFile) & Format(intK, "0000") & ".png"
+
+        If Exist(directoryImagesParagraphs &/ strImg) Then
+          stx[int] = Replace(stx[int], strImg, "../Images/" & strImgRen)
+          Try Move directoryImagesParagraphs &/ strImg To directoryImagesParagraphs &/ strImgRen
+        Endif
+      Endif
+    Next
+    File.Save(strFile, stx.Join("\n"))
+
+  Endif
+
+End
+
+'' Change tag works as ctrl+1, 2, 3, 4, 5, 6, p
+
+Public Function ChangeTag(strIn As String, strTag As String) As String
+
+  Dim stxBody As New String[]
+  Dim stxHtml As New String[]
+  Dim strTagTmp As String
+  Dim strText As String
+  Dim str As String
+  Dim strOut As String
+  Dim tag As String
+  Dim htm As String
+  Dim nti As Integer
+  Dim cRep As New Collection
+  Dim vTag As Variant
+
+  cRep.Add("<b>", "[:BOLD:]")
+  cRep.Add("</b>", "[/BOLD/]")
+  cRep.Add("<i>", "[:ITALIC:]")
+  cRep.Add("</i>", "[/ITALIC/]")
+  cRep.Add("<u>", "[:UNDERLINED:]")
+  cRep.Add("</u>", "[/UNDERLINED/]")
+
+  stxBody.Insert(["h1", "h2", "h3", "h4", "h5", "h6", "p", "li", "ul"])
+  stxHtml.Insert(["<?xml version=", "<!DOCTYPE html", "www.w3.org", "<html", "html>", "<title>", "head>", "body>"])
+
+  str = strIn
+
+  For Each htm In stxHtml
+    If InStr(str, htm) > 0 Then
+      Inc nti ' Not touch it
+    Endif
+  Next
+
+  For Each vTag In cRep
+    If InStr(str, vTag) > 0 Then
+      str = Replace(str, vTag, cRep.Key)
+    Endif
+  Next
+
+  str = Replace(str, "</", "\t")
+  str = Replace(str, "<", "")
+  str = Replace(str, ">", "\t")
+
+  If str = "" Then
+    Inc nti
+  Endif
+
+  If nti = 0 Then
+
+    If InStr(str, "\t") > 0 Then
+      strTagTmp = Split(str, "\t")[0]
+      strText = Split(str, "\t")[1]
+      strText = vag.ConvertPath(strText)
+      For Each tag In stxBody
+        If tag = String.LCase(strTag) Then
+          strOut = "<" & tag & ">" & strText & "</" & tag & ">"
+          Break
+        Endif
+      Next
+    Else
+      strOut = "<" & strTag & ">" & str & "</" & strTag & ">"
+    Endif
+  Else
+    strOut = strIn
+  Endif
+
+  For Each vTag In cRep
+    If InStr(strOut, cRep.Key) > 0 Then
+      strOut = Replace(strOut, cRep.Key, vTag)
+    End If
+  Next
+
+  Return strOut
+
+End
+
+Public Sub TextEditor1_Cursor()
+
+  intPosLine = TextEditor1.Line
+  intPosColu = TextEditor1.Column
+
+  strLineText = TextEditor1[intPosLine].Text
+
+  Select String.Len(strLineText)
+    Case 0
+      strBefText = ""
+      strAftText = ""
+    Case Else
+      strBefText = String.Mid(strLineText, 1, intPosColu + 1)
+      strAftText = String.Mid(strLineText, intPosColu + 1)
+
+  End Select
+
+  lblCursor.Text = " Ln" & " " & TextEditor1.Line & ", " & ("Col") & " " & TextEditor1.Column & " "
+  lblSelection.Text = " " & TextEditor1.SelectedText
+  'Print strLineText
+
+End
+
+Public Sub TextEditor1_KeyPress()
+
+  Dim strShCut As String
+
+  strShCut = String.LCase(Shortcut.FromKey())
+
+  MenuEditor(strShCut)
+
+End
+
+' Public Sub TextEditor1_KeyPress()
+'
+'   Dim strShCut As String
+'   Dim str As String
+'   Dim sMod As String
+'   Dim iCol As Integer
+'   Dim sLeft As String
+'   Dim sRight As String
+'   Dim r As Integer
+'   Dim strTab As String
+'   Dim stx As New String[]
+'   Dim tx As String
+'   Dim sTag As String
+'
+'   strShCut = String.LCase(Shortcut.FromKey())
+'
+'   Select strShCut
+'     Case "ctrl+c"
+'       strCopyText = TextEditor1.SelectedText
+'
+'     Case "ctrl+s"
+'       TextEditor1.Save(txt)
+'       TextLabelLoad()
+'
+'     Case "ctrl+1", "ctrl+2", "ctrl+3", "ctrl+4", "ctrl+5", "ctrl+6"
+'       str = TextEditor1[intPosLine].Text
+'       sMod = Split(strShCut, "+")[1]
+'       TextEditor1[intPosLine].Text = ChangeTag(str, "h" & sMod)
+'
+'     Case "ctrl+p", "ctrl+0"
+'       str = TextEditor1[intPosLine].Text
+'       TextEditor1[intPosLine].Text = ChangeTag(str, "p")
+'
+'     Case "ctrl+h"  ' code
+'       strTab = "<xpm>"
+'       For r = TextEditor1.SelectionLine To TextEditor1.Line
+'         Select r
+'           Case TextEditor1.SelectionLine
+'             TextEditor1[r].Text = "<pre>" & TextEditor1[r].Text
+'
+'           Case TextEditor1.Line
+'             TextEditor1[r].Text = TextEditor1[r].Text & "</pre>"
+'         End Select
+'       Next
+'
+'     Case "ctrl+t"
+'       strTab = "<table>\n"
+'       For r = TextEditor1.SelectionLine To TextEditor1.Line
+'         stx.Clear
+'         If InStr(TextEditor1[r].Text, ":") > 0 Then
+'           stx = Split(TextEditor1[r].Text, ":")
+'         Else
+'           stx.Add(TextEditor1[r].Text)
+'         Endif
+'         Select r
+'           Case TextEditor1.SelectionLine
+'             strTab = "<table><tr>"
+'             For Each tx In stx
+'               strTab &= "<th>" & tx & "</th>"
+'             Next
+'             strTab &= "</tr>"
+'             TextEditor1[r].Text = strTab
+'           Case TextEditor1.Line
+'             strTab = "<tr>"
+'             For Each tx In stx
+'               strTab &= "<td>" & tx & "</td>"
+'             Next
+'             strTab &= "</tr></table>"
+'             TextEditor1[r].Text = strTab
+'           Case Else
+'             strTab = "<tr>"
+'             For Each tx In stx
+'               strTab &= "<td>" & tx & "</td>"
+'             Next
+'             strTab &= "</tr>"
+'             TextEditor1[r].Text = strTab
+'         End Select
+'       Next
+'
+'     Case "ctrl+l"
+'       str = TextEditor1[intPosLine].Text
+'       TextEditor1[intPosLine].Text = ChangeTag(str, "li")
+'
+'     Case "ctrl+m"
+'       str = TextEditor1[intPosLine].Text
+'       TextEditor1[intPosLine].Text = ChangeTag(str, "ul")
+'
+'     Case "ctrl+j"
+'       str = TextEditor1.SelectedText
+'       TextEditor1[TextEditor1.SelectionLine].Text = Replace(str, "\n", " ")
+'       For r = TextEditor1.SelectionLine + 1 To TextEditor1.Line
+'         TextEditor1[r].Text = ""
+'       Next
+'
+'     Case "ctrl+b", "ctrl+i", "ctrl+u"
+'       str = TextEditor1.SelectedText
+'       iCol = TextEditor1.SelectionColumn
+'       sMod = Split(strShCut, "+")[1]
+'
+'       sLeft = String.Mid(TextEditor1[intPosLine].Text, 1, iCol)
+'       sRight = String.Mid(TextEditor1[intPosLine].Text, 1 + iCol + String.Len(str))
+'       TextEditor1[intPosLine].Text = sLeft & "<" & sMod & ">" & str & "</" & sMod & ">" & sRight
+'       TextEditor1.Select(iCol + 3, intPosLine, 1 + iCol + String.Len(str) + 2, intPosLine)
+'       '
+'       ' Case "ctrl+i"
+'       '   str = TextEditor1.SelectedText
+'       '   iCol = TextEditor1.SelectionColumn
+'       '   sLeft = String.Mid(TextEditor1[intPosLine].Text, 1, iCol)
+'       '   sRight = String.Mid(TextEditor1[intPosLine].Text, 1 + iCol + String.Len(str))
+'       '   TextEditor1[intPosLine].Text = sLeft & "<i>" & str & "</i>" & sRight
+'       '   TextEditor1.Select(iCol + 3, intPosLine, 1 + iCol + String.Len(str) + 2, intPosLine)
+'
+'   End Select
+'
+' End
+
+Public Sub TextEditor1_MouseDown()
+
+  intIniPos = TextEditor1.Column
+  intIniLine = TextEditor1.Line
+
+End
+
+Public Sub TextEditor1_MouseUp()
+
+  intEndPos = TextEditor1.Column
+  intEndLine = TextEditor1.Line
+
+End
+
+Public Sub TreeView1_Rename()
+
+  Dim strKey As String
+  Dim cn As New Collection
+
+  Select TreeView1.Item.ParentKey
+    Case "meta"
+      If TreeView1.Key Then
+        strKey = TreeView1[TreeView1.Key].Text
+        cn.Clear
+        cn.Add(strKey, "dc:" & TreeView1.Key)
+        epb.EpubContenOpfEdit(directoryEPUB &/ "OEBPS/content.opf", cn)
+      Endif
+
+  End Select
+
+End
+
+Public Sub TreeView1_Select()
+
+  Dim imageLowResolution As String
+  Dim imageHighResolution As String
+  Dim pix As PictureBox
+  Dim extr As String
+  Dim sContent As String
+  Dim sArranged As String
+  Dim pic As PictureBox
+
+  Dim imageTemp As Image
+  Dim imagePage As String
+
+  Dim ob As Control
+  Dim errLine As Integer
+  Dim errListTemp As Integer[]
+  Dim textLinksReplaced As String
+  Dim textFromFile As String
+  Dim imageForOCR As String
+
+  If TreeView1.Item Then
+    Select TreeView1.Item.ParentKey
+      Case "meta"
+        Print TreeView1.Key
+        Label1.Text = String.UCaseFirst(TreeView1.Key)
+
+      Case "book"
+        '' Is the content section
+        AplyMode("metadata")
+
+      Case "pages"
+        AplyMode("pages")
+        'ScrollView1.Children.Clear
+        pageIndex = CInt(TreeView1.Key)
+
+        ValueBox1.Value = pageIndex
+
+        'imageLowResolution = directoryImagesThumbnails &/ Format(pageIndex, "0000") & ".jpeg"
+        'imageHighResolution = directoryImagesBook &/ Format(pageIndex, "0000") & ".jpeg"
+        imageForOCR = directoryImagesOCR &/ Format(pageIndex, "0000") & ".png"
+
+        pageTextFile = directoryTextBook &/ Format(pageIndex, "0000") & ".html"
+
+        'ren = directoryTextBook &/ Format(pageIndex, "0000") & ".jpeg" ' Render image
+
+        RefreshImagesParagraphPanel()
+        ' pnlPageImages.Children.Clear
+        ' pnlPageImages.Arrangement = Arrange.Horizontal
+        '
+        ' xspring = New ToolButton(pnlPageImages) As "xSpring"
+        ' With xspring
+        '   .Tag = "1"
+        '   .Name = "1"
+        '   .Border = False
+        '   .W = 40
+        '   .H = 40
+        '   .Expand = True
+        ' End With
+        ' Wait 0.01
+        '
+        ' If listImagesParagraphs.Exist(TreeView1.Key) Then '' pdfimages comienza a numear las paginas en 1 mientras que en este programa se hace desde 0
+        '
+        '   pnlPageImages.Visible = True
+        '   pnlPageImages.Arrangement = Arrange.Row
+        '
+        '   If listImagesParagraphs.Exist(TreeView1.Key) Then
+        '     For Each sPic In listImagesParagraphs[TreeView1.Key]
+        '       If Exist(sPic) Then
+        '         If Stat(sPic).Type = gb.File Then
+        '           tob = New ToolButton(pnlPageImages) As "ipic"
+        '
+        '           With tob
+        '             .Name = sPic
+        '             img = Image.Load(sPic)
+        '             If Application.DarkTheme Then
+        '               img.Invert()
+        '             Endif
+        '             iHeight = pnlPageImages.Height
+        '             iWidth = iHeight * (img.Width / img.Height)
+        '
+        '             .Picture = img.Stretch(iWidth, iHeight).Picture
+        '             .W = iWidth
+        '             .H = iHeight
+        '             .Tag = sPic
+        '             .Expand = True
+        '           End With
+        '         Endif
+        '       Endif
+        '     Next
+        '
+        '   Endif
+        '
+        ' Else
+        '   pnlPageImages.Children.Clear
+        '   pnlPageImages.Visible = False
+        ' Endif
+        '
+        ' xspring2 = New ToolButton(pnlPageImages) As "xSpring2"
+        ' With xspring2
+        '   .Tag = "2"
+        '   .Name = "2"
+        '   .Border = False
+        '   .W = 40
+        '   .H = 40
+        '   .Expand = True
+        '   '.Background = Color.Yellow
+        ' End With
+        pnlPageImages.Arrangement = Arrange.None
+        pnlPageImages.Arrangement = Arrange.Horizontal
+
+        RefreshWebview()
+        ' If Exist(pageTextFile) Then
+        '   TextEditor1.Text = File.Load(pageTextFile)
+        '   sContent = "<html><head></head><body style=\"color: " & Main.sForeground & "; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;\">\n"
+        '   textFromFile = File.Load(pageTextFile)
+        '   sContent &= TextLinksReplaced2(textFromFile)
+        '   sContent &= "</body></html>"
+        '   WebView1.HTML = sContent
+        ' Endif
+
+        ' If Exist(pageTextFile) Then
+        '   TextEditor1.Text = File.Load(pageTextFile)
+        '   WebView1.HTML = sContent 'File.Load(txt)
+        '   If textErrors.Count > 0 Then
+        '     If textErrors.Exist(CStr(pageIndex)) Then
+        '       errListTemp = textErrors[CStr(pageIndex)]
+        '
+        '       For errLine = 0 To errListTemp.Max
+        '         TextEditor1[errListTemp[errLine]].Bookmark = True
+        '       Next
+        '     Endif
+        '   Endif
+        ' Endif
+
+        'pix = New PictureBox(ScrollView1) As "pix"
+
+        ' With pix
+        '   .Expand = True
+        '   If Exist(imageHighResolution) Then
+        '     If Application.DarkTheme Then
+        '       .Picture = Image.Load(imageHighResolution).Erase(Color.White).Invert(False).Picture
+        '     Else
+        '       .Picture = Image.Load(imageHighResolution).Picture
+        '     Endif
+        '   Else
+        '     If Exist(bat.PdfPage2Image(pdfWork, pageIndex, imageHighResolution)) Then
+        '       img = Image.Load(imageHighResolution)
+        '       img.Save(imageForOCR, 80)
+        '       img.Save(imageLowResolution, 10)
+        '     Endif
+        '
+        '     If Application.DarkTheme Then
+        '       .Picture = Image.Load(imageHighResolution).Erase(Color.White).Invert(False).Picture
+        '     Else
+        '       .Picture = Image.Load(imageHighResolution).Picture
+        '     Endif
+        '   Endif
+        '   .mode = PictureBox.Contain
+        ' End With
+
+    End Select
+  Endif
+
+End
+
+Private Sub RefreshImagesParagraphPanel()
+
+  Dim xspring As ToolButton
+  Dim xspring2 As ToolButton
+  Dim sPic As String
+  Dim tob As ToolButton
+  Dim iWidth As Integer
+  Dim iHeight As Integer
+
+  pnlPageImages.Children.Clear
+  pnlPageImages.Arrangement = Arrange.Horizontal
+
+  xspring = New ToolButton(pnlPageImages) As "xSpring"
+  With xspring
+    .Tag = "1"
+    .Name = "1"
+    .Border = False
+    .W = 40
+    .H = 40
+    .Expand = True
+  End With
+  Wait 0.01
+
+  If listImagesParagraphs.Exist(TreeView1.Key) Then '' pdfimages comienza a numear las paginas en 1 mientras que en este programa se hace desde 0
+
+    pnlPageImages.Visible = True
+    pnlPageImages.Arrangement = Arrange.Row
+
+    If listImagesParagraphs.Exist(TreeView1.Key) Then
+      For Each sPic In listImagesParagraphs[TreeView1.Key]
+        If Exist(sPic) Then
+          If Stat(sPic).Type = gb.File Then
+            tob = New ToolButton(pnlPageImages) As "ipic"
+
+            With tob
+              .Name = sPic
+              img = Image.Load(sPic)
+              If Application.DarkTheme Then
+                img.Invert()
+              Endif
+              iHeight = pnlPageImages.Height
+              iWidth = iHeight * (img.Width / img.Height)
+
+              .Picture = img.Stretch(iWidth, iHeight).Picture
+              .W = iWidth
+              .H = iHeight
+              .Tag = sPic
+              .Expand = True
+            End With
+          Endif
+        Endif
+      Next
+
+    Endif
+
+  Else
+    pnlPageImages.Children.Clear
+    pnlPageImages.Visible = False
+  Endif
+
+  xspring2 = New ToolButton(pnlPageImages) As "xSpring2"
+  With xspring2
+    .Tag = "2"
+    .Name = "2"
+    .Border = False
+    .W = 40
+    .H = 40
+    .Expand = True
+    '.Background = Color.Yellow
+  End With
+
+End
+
+Private Sub refreshEditor()
+
+  'If Exist(pageTextFile) Then
+  'TextEditor1.Text = File.Load(pageTextFile)
+  'WebView1.HTML = sContent 'File.Load(txt)
+  Dim errListTemp As Variant
+  Dim errLine As Integer
+
+  If textErrors.Count > 0 Then
+    If textErrors.Exist(CStr(pageIndex)) Then
+      errListTemp = textErrors[CStr(pageIndex)]
+      For errLine = 0 To errListTemp.Max
+
+        TextEditor1[errListTemp[errLine]].Bookmark = True
+      Next
+    Endif
+  Endif
+  'Endif
+
+End
+
+Private Sub RefreshWebview()
+
+  Dim sContent As String
+  Dim textFromFile As String
+  Dim textRaw As String
+
+  If Exist(pageTextFile) Then
+    textRaw = File.Load(pageTextFile)
+    TextEditor1.Text = textRaw
+    sContent = "<html><head></head><body style=\"color: " & Main.sForeground & "; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;\">\n"
+    textFromFile = textRaw
+    sContent &= TextLinksReplaced2(textFromFile)
+    sContent &= "</body></html>"
+    WebView1.HTML = sContent
+    WebView1.Refresh
+  Endif
+
+End
+
+Public Function TextLinksReplaced2(textRaw As Variant) As String
+
+  Dim textReplaced As String
+
+  textReplaced = Replace(textRaw, "../Images/", "file:" & directoryImagesParagraphs & "/")
+
+  Return textReplaced
+
+End
+
+Public Sub ipic_MouseDown()
+
+  Dim sImg As String
+
+  Print Last.tag
+  sImg = "\n<img width=\"400\" alt = \"" & File.Name(Last.tag) & "\""
+  sImg &= " src=\"../Images/" & File.Name(Last.tag)
+  'sImg &= " src=\"file:" & directoryImagesParagraphs & "/" & File.Name(Last.tag)
+  sImg &= "\" ></img>\n"
+
+  TextEditor1[TextEditor1.Line].Text = sImg
+
+End
+
+'' <p>Change the work scenario: <p><ul><li>Pages</li> <li>Metadata</li></ul>
+
+Public Sub AplyMode(mode As String)
+
+  Select mode
+    Case "pages"
+      pnlText.Visible = True
+      pnlMetadata.Visible = False
+      pnlMetadataControls.Children.Clear
+
+    Case "metadata"
+      pnlText.Visible = False
+      pnlMetadata.Visible = True
+      pnlMetadataControls.Children.Clear
+      CreateMetadataCotrols()
+
+  End Select
+
+End
+
+Public Sub CreateMetadataCotrols()
+
+  'Dim metadataBook As Collection
+  Dim meta As Variant
+  Dim pnl As Panel
+  Dim lbl As Label
+  Dim txo As TextBox
+  Dim imageFile As String
+
+  'metadataBook = epb.ContentData()
+
+  For Each meta In bookMetadata
+    pnl = New Panel(pnlMetadataControls)
+    With pnl
+      .Width = 320
+      .Height = 64
+      '.Background = Color.Cyan
+      .Tag = meta[0]
+      .Name = "pnl" & meta[0]
+      .Arrangement = Arrange.Vertical
+    End With
+
+    lbl = New Label(pnl)
+    With lbl
+      .Name = "lbl" & meta[0]
+      .Tag = meta[0]
+      .Text = meta[0]
+      .Expand = True
+    End With
+
+    txo = New TextBox(pnl) As "Meta"
+    With txo
+      .Name = "txo" & meta[0]
+      .Tag = meta[0]
+      .Tooltip = meta[1]
+      .Text = meta[2]
+      .Expand = True
+    End With
+  Next
+
+  imageFile = directoryEPUB &/ "OEBPS/Images/cover.jpg"
+
+  If Exist(imageFile) Then
+    img = Image.Load(imageFile)
+    img.Stretch(PictureBox1.W, PictureBox1.H)
+    PictureBox1.Picture = img.Picture
+  Endif
+
+End
+
+Public Sub Meta_Change()
+
+  Dim cn As New Collection
+
+  cn.Clear
+
+  If bookMetadata.Exist(Last.Tag) Then
+    bookMetadata[Last.Tag] = Last.Text
+
+    cn.Add(Last.Text, "dc:" & Last.Tag)
+    epb.EpubContenOpfEdit(directoryEPUB &/ "OEBPS/content.opf", cn)
+
+  Endif
+
+End
+
+Public Sub AplyTheme(Optional strPath As String) '' Carga el tema de visualizacion para el TextEditor
+
+  Dim tgg As String
+  Dim tmp As String
+  Dim vrt As Variant
+  Dim cnx As New Collection
+
+  Dim r As String
+
+  If strPath = "" Then
+    strPath = xmg.GetVar("Desktop.Text-Editor-Theme", Main.apc)
+  Endif
+  cnx.Clear
+
+  If Application.DarkTheme Then
+    strPath = "./editor-themes/oblivion.theme"
+  Else
+    strPath = "./editor-themes/gambas.theme"
+  Endif
+
+  'If Exist(strPath) Then
+  For Each r In Split(File.Load(strPath), "\n")
+    If InStr(r, "=") > 0 Then
+      tgg = Split(r, "=")[0]
+      tmp = Replace(Split(r, "=")[1], "\"", "")
+      tmp = Replace(tmp, "#", "&H")
+      If InStr(tmp, ",") > 0 Then
+        vrt = [Val(Split(tmp, ",")[0]), Split(tmp, ",")[1]]
+      Else
+        vrt = Val(tmp)
+      Endif
+      cnx.Add(vrt, tgg)
+    Endif
+  Next
+
+  With TextEditor1
+    .Mode = "HTML"
+    .Styles[Highlight.Background].Color = cnx["Background"] 'Val(strVal)
+    .Styles[Highlight.Normal].Color = cnx["Normal"]
+    '.Styles[Highlight.Keyword].Color = cnx["Keyword"][0]
+    .Styles[Highlight.Keyword].Color = cnx["Keyword"]
+    .Styles[Highlight.DataType].Color = cnx["Datatype"]
+    .Styles[Highlight.Function].Color = cnx["Function"]
+    '.Styles[Highlight.Operator].Color = cnx["Operator"][0]
+    .Styles[Highlight.Operator].Color = cnx["Operator"]
+    .Styles[Highlight.Symbol].Color = cnx["Symbol"]
+    .Styles[Highlight.Number].Color = cnx["Number"]
+    .Styles[Highlight.String].Color = cnx["String"]
+    '.Styles[Highlight.Comment].Color = cnx["Comment"][0]
+    .Styles[Highlight.Comment].Color = cnx["Comment"]
+    '.Styles[Highlight.Help].Color = cnx["Help"][0]
+    .Styles[Highlight.Help].Color = cnx["Help"]
+    .Styles[Highlight.Preprocessor].Color = cnx["Preprocessor"][0]
+    .Styles[Highlight.Breakpoint].Color = cnx["Breakpoint"]
+    .Styles[Highlight.Current].Color = cnx["Current"]
+    .Styles[Highlight.Selection].Color = cnx["Selection"]
+    .Styles[Highlight.Highlight].Color = cnx["Highlight"]
+    .Styles[Highlight.CurrentLine].Color = cnx["CurrentLine"]
+    .Styles[Highlight.Error].Color = cnx["Error"][0]
+  End With
+  'Endif
+
+  TextEditor1.Refresh
+
+End
+
+' Public Sub TextEditor1_Highlig(Text As String)
+'
+'   bEdition = True
+'
+' End
+
+Public Sub menuapp_KeyPress()
+
+  If Key.Code = Key.Enter Then
+    If Last.Tag = "goto" Then
+      Menuapp(Last.Value)
+    Endif
+  Endif
+
+End
+
+Public Sub Form_KeyPress()
+
+  bTime = True
+
+End
+
+Public Sub ActivityLogger_Timer()
+
+  Inc iOpen
+  If bTime Then
+    Inc iTime
+    File.Save(directoryWorking &/ "time.log", CStr(iTime))
+    bTime = False
+  Endif
+  ActivitiIndication()
+
+End
+
+Public Sub ActivitiIndication()
+
+  lblActivity.Text = ("Open") & " " & CStr(iOpen) & " / " & ("Active") & " " & CStr(iTime)
+  lblActivity.Refresh
+
+End
+
+Public Sub tobReExtractText_Click()
+
+  Dim textContent As String
+
+  textContent = TexEx(pageIndex)
+  textContent = vag.Paragraph(textContent, "html5")
+  File.Save(pageTextFile, textContent)
+  TextEditor1.Text = textContent
+  TextEditor1.Refresh
+
+End
+
+Public Sub tobCreateParagraphImage_Click()
+
+  Dim imagePage As String
+  Dim imageTemp As Image
+  Dim iWidth As Integer
+  Dim iHeight As Float
+  Dim imageSource As String
+  Dim Override As Boolean
+
+  imagePage = directoryImagesParagraphs &/ Format(pageIndex, "0000") & ".png"
+  imageSource = directoryImagesBook &/ Format(pageIndex, "0000") & ".png"
+
+  If Exist(imagePage) Then
+    If Message.Warning(("the file already exists, do you want to overwrite it?"), ("Acept"), ("Cancel")) = 1 Then
+      If Exist(imageSource) Then
+        Copy imageSource To imagePage
+      Endif
+    Endif
+  Else
+    If Exist(imageSource) Then
+      Copy imageSource To imagePage
+    Endif
+  Endif
+
+  If Exist(imagePage) Then
+    imageTemp = Image.Load(imagePage)
+    imageTemp.Gamma(-0.4)
+    imageTemp.Contrast(0.1)
+    imageTemp.Gray()
+    imageTemp.Erase(Color.White)
+    iWidth = 600
+    iHeight = imageTemp.Height * (iWidth / imageTemp.Width)
+    imageTemp = imageTemp.Stretch(iWidth, iHeight)
+    imageTemp.Save(imagePage, 25)
+    ListOfImagesPharagraph()
+
+    Shell "gimp " & imagePage
+
+  Endif
+
+End
+
+Public Sub btoSearch_Click()
+
+  Dim page As String
+  Dim textFile As String
+  Dim listMatch As New String[]
+  Dim tob As ToolButton
+  Dim textContent As String
+
+  listMatch.Clear
+  pnlSearch.Children.Clear
+  pnlSearch.Arrangement = Arrange.Column
+  pnlSearch.Visible = False
+
+  If btoSearch.Text <> "" Then
+    For Each page In TreeView1.Keys
+      If TreeView1[page].ParentKey = "pages" Then
+        textFile = directoryTextBook &/ Format(page, "0000") & ".html"
+        textContent = File.Load(textFile)
+        If InStr(textContent, btoSearch.Text) > 0 Then
+          listMatch.Add(page)
+        Endif
+      Endif
+    Next
+  Endif
+
+  If listMatch.Count > 0 Then
+    pnlSearch.Visible = True
+
+    For Each page In listMatch
+      tob = New ToolButton(pnlSearch) As "Match"
+      With tob
+        .Tag = CInt(page)
+        .Text = page
+        .H = pnlSearch.H
+        .W = pnlSearch.H
+
+      End With
+    Next
+
+  Endif
+
+End
+
+Public Sub Match_Click()
+
+  Menuapp(Last.Tag)
+
+End
+
+Public Sub tobOpenImageFile_Click()
+
+  Dim imageFile As String
+
+  imageFile = directoryImagesBook &/ Format(pageIndex, "0000") & ".jpeg"
+  If Exist(imageFile) Then
+    Desktop.Open(imageFile)
+  Endif
+
+End
+
+Public Sub tobConsistencyCheck_Click()
+
+  Dim textList As New String[]
+  Dim textLines As New String[]
+  'Dim textErrors As New Collection
+  Dim text As String
+  Dim i As Integer
+  Dim item As String
+  Dim textFile As String
+  Dim textContent As String
+  Dim textErr As Variant
+
+  textList = fil.ScanFiles(directoryTextBook, ["html"])
+  textList.Sort
+  textErrors.Clear
+
+  For Each item In TreeView1.Keys
+    If TreeView1[item].ParentKey = "pages" Then
+      textFile = directoryTextBook &/ Format(item, "0000") & ".html"
+      If Exist(textFile) Then
+        textContent = File.Load(textFile)
+        textLines = Split(textContent, "\n")
+        For i = 0 To textLines.Max
+          'Check <img></img>
+          If InStr(textLines[i], "<img") > 0 Then
+            If InStr(textLines[i], "</img>") = 0 Then
+              If textErrors.Exist(item) Then
+                textErrors[item].Add(i)
+              Else
+                textErrors[item] = [i]
+              Endif
+            Endif
+          Endif
+        Next
+      Endif
+    Endif
+  Next
+
+  For Each item In TreeView1.Keys
+    If textErrors.Exist(item) Then
+      TreeView1[item].RichText = ("<b>" & Format(item, "0000") & "</b>")
+    Else
+      TreeView1[item].RichText = ""
+    Endif
+
+  Next
+
+End
+
+Public Sub IconsLoad(iconsContainer As Container)
+
+  Dim listOrders As New Collection
+  Dim btx As New String[]
+  Dim shx As New String[]
+  Dim i As Integer
+  Dim tob As ToolButton
+  Dim pic As Picture
+  Dim svg As String
+  Dim sPic As String
+  Dim spr As Spring
+  Dim sType As String
+  Dim Tip As String
+
+  btx.Clear
+  shx.Clear
+
+  listOrders.Clear
+
+  Select iconsContainer.Tag
+
+    Case "tools"
+      listOrders.Add(("Menu"), "menu")
+      listOrders.Add("~", "~1")
+      listOrders.Add(("Open file"), "openpdf")
+      listOrders.Add(("Open project"), "openproject")
+      listOrders.Add(("Open post-processing tool"), "postprocessing")
+      listOrders.Add(("Open directory"), "opendir")
+      listOrders.Add(("Create ebook files"), "bookfiles")
+      listOrders.Add(("Packing epub"), "bookzip")
+      listOrders.Add(("Imposition A4"), "ia4")
+      listOrders.Add(("Imposition A5"), "ia5")
+      listOrders.Add(("Imposition A6"), "ia6")
+      listOrders.Add("~", "~2")
+      listOrders.Add(("Quit"), "quit")
+  End Select
+
+  For Each Tip In listOrders 'btx.Max
+    Select Mid(listOrders.Key, 1, 1)
+      Case "~"
+        spr = New Spring(iconsContainer)
+      Case Else
+
+        Select iconsContainer.Tag
+          Case "file"
+            sType = "ToolButton"
+            pic = Stock["24/" & listOrders.Key]
+            tob = New ToolButton(iconsContainer) As "menuapp"
+
+          Case Else
+            sType = "ToolButton"
+            sPic = "./svg/custom/" & iconsContainer.tag &/ listOrders.Key & ".svg"
+            tob = New ToolButton(iconsContainer) As "menuapp"
+
+            If Exist(sPic) Then
+              svg = dsk.Contrary(sPic, "#0066b3")
+              pic = Image.FromString(svg).Stretch(24, 24).Picture
+            Else
+              pic = Stock["icon:/24/error"]
+            Endif
+
+        End Select
+
+        With tob
+          .Name = listOrders.Key
+          .H = 35
+          .W = 35
+          .Tag = listOrders.Key
+          .Tooltip = Tip 'shx[i]
+          .Picture = pic
+        End With
+
+        'End Select
+
+    End Select
+  Next
+
+End

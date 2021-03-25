@@ -1,0 +1,331 @@
+' Gambas module file
+
+'
+' ebook-optimizer
+' Book optimization
+'
+' Copyright (C) Martín Belmonte
+'
+' This program is free software; you can redistribute it and/or modify
+' it under the terms of the GNU General Public License as published by
+' the Free Software Foundation; either version 2 of the License, or
+' (at your option) any later version.
+'
+' This program is distributed in the hope that it will be useful,
+' but WITHOUT ANY WARRANTY; without even the implied warranty of
+' MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+' GNU General Public License for more details.
+'
+' You should have received a copy of the GNU General Public License
+' along with this program; if not, write to the Free Software
+' Foundation, Inc., 51 Franklin St, Fifth Floor,
+' Boston, MA  02110-1301  USA
+'
+
+''' Module for customizing names of fields and tables in the database and other things, for example, it allows the translation of the titles of fields and tables.
+
+Public AppTitle As String = ("eBook Optimizer") ''Application title
+
+'' Create a collection with all the text strings that can be displayed differently depending on the environment. For example, in a grid view you can show more friendly or aesthetic field titles than the real names of the fields or also define in a single place the verification formats for each field or finally also define other names for the fields in the reports.
+
+Public Function Replacements() As Collection
+
+  Dim rn As New Collection
+  Dim rf As New Collection          '' Formatas for database storage
+  Dim rg As New Collection          '' Fields groups
+  Dim rr As New Collection          '' Formatas for reports
+  Dim rp As New Collection          '' Replacements list
+  Dim tr As New Collection          '' Tables shown on treeview
+  'Dim px As New Collection          '' Pictures list
+
+  'rn.Add(("TableTitle"), "table")
+  'rn.Add("Title", "table.field")
+
+  'Formats of the data to write to the database (Database)
+  'rf.Add("C[field]", "table.field")
+  'rf.Add("something /|LNS[field]|.jpeg", "table.field")
+  'rf.Add("H[4]", "table.field")
+
+  'Data formats in reports (Reports)
+  'rr.Add("MOBILE[]", "table.field")
+  'rr.Add("PHONE[]", "table.field")
+  'rr.Add("WEB[]", "table.field")
+  'rr.Add("FAX[]", "table.field")
+  'rr.Add("MONEY[€]", "table.field")
+
+  'Groups
+  'rg.Add("Date", "table.field")
+  'rg.Add("Image", "table.field")
+  'rg.Add("Email", "table.field")
+  'rg.Add("Link", "table.field")
+  'rg.Add(("Vendor phone"), "table.field")
+  'rg.Add(("Client phone"), "table.field")
+  'rg.Add(("Address"), "table.field")
+
+  'px.Add("svg/custom/mytable.svg", "mytable")
+
+  'TreeView behavior
+  'tr.Add("root", "table")
+
+  'rp.Add(rn, "Title")
+  'rp.Add(rf, "Format")
+  'rp.Add(rg, "Group")
+  'rp.Add(tr, "Tree")
+  'rp.Add(px, "Pictures")
+  'rp.Add(rr, "Report")
+
+  Return rp
+
+End
+
+Public Function DataAcc(f As String, sVendor As String) As Collection
+
+  Dim ctn As New Collection
+  Dim ctnDir As New Collection
+  Dim bdir As Variant
+  Dim dat As New Collection
+  Dim v As Variant
+  Dim fname As String
+  Dim prs As Process
+  Dim imp As New Collection
+
+  Select sVendor
+    Case "rohlik"
+      If Exist(Main.adi &/ "pic") = False Then
+        Try Mkdir Main.adi &/ "pic"
+      Endif
+
+      ' ctn.Clear
+      ' ctn.Add("Variable", "dad.node")
+      ' ctn.Add("Name", "att.name")
+      ' ctn.Add("Scan.Directory-1", "att.value")
+      '
+      ' ctnDir.Clear
+      ' ctnDir = xmg.XMLTagAtt(apc, ctn)
+      ' bdir = ctnDir["Value"]
+
+      'For Each f In fil.RListFiles(bdir, ["html"], False)
+      'f = dsk.FileChooser(, ["html"])[0]
+      If Exist(f) Then
+        ctn.Clear
+        ctn.Add(f, "File")
+        dat.Clear
+        dat = ReadMail2(ctn)
+        If dat.Count > 0 Then
+
+          For Each v In dat
+            Select TypeOf(v)
+                'Select Object.Type(v)
+              Case 16
+
+                If v.Exist("Item") Then
+
+                  fname = String.LCase(File.Name(v["Image"]))
+
+                  If Exist(Main.adi &/ "pic" &/ fname) = False Then
+                    Shell "wget " & v["Image"] & " --output-document=" & "/tmp/image.jpg" Wait
+                    'prs = Shell "wget " & v["Image"] & " --output-document=" & "/tmp/image.jpg"
+                    'While prs.State = prs.Running
+                    '  Wait 0.1
+                    'Wend
+                    Shell "mv /tmp/image.jpg " & Main.adi &/ "pic" &/ fname
+                  Endif
+                  'A - Verificar la existencia del item en la base
+                  imp.Clear
+                  imp.Add(v["Item"], "mname")
+                  imp.Add("None", "malim")
+                  imp.Add("None", "mmark")
+                  If v.Exist("Bioclass") Then
+                    imp.Add(v["Bioclass"], "mbioc")
+                  Else
+                    imp.Add("None", "mbioc")
+                  Endif
+                  imp.Add("pic" &/ fname, "mpict")
+                  imp.Add(v["Link"], "mlink")
+
+                  If imp["malim"] = "None" Then
+
+                  Endif
+
+                  Select dbs.RecordExist(Main.con, "items", imp)
+                    Case "", 0, -1
+                      'No existe, se procede a agregarlo
+                      If imp.Exist("midx") = False Then
+                        imp.Add(Null, "midx")
+                      Endif
+                      dbs.RecordEdit(Main.con, "items", Main.dbc, imp)
+                      'Case Else ' Este seria el caso de un update pero no lo voy a hacer de momento,
+                  End Select
+                  'A - Agregar los datos de la compra, la tienda la fecha de la transacción etc.
+
+                  'C - Agregar la lista de la compra
+
+                Endif
+            End Select
+          Next
+        Endif
+      Endif
+      'Next
+
+      'Case Else
+
+  End Select
+
+End
+
+Public Function ReadMail2(cdt As Collection) As Collection
+
+  Dim htd As New HTmlDocument
+  Dim ctn As New Collection
+  Dim ite As New Collection
+  Dim trx As XmlElement[]
+  Dim tr As XmlElement
+  Dim tdx As XmlElement[]
+  Dim order As String
+  Dim att As XmlNode
+  Dim prod As String
+  Dim price As String
+  Dim chi As XmlNode
+  Dim gch As XmlNode
+  Dim curr As String
+  Dim j As Integer
+  Dim times As String
+  Dim biocls As String
+
+  Dim mlx As XmlElement[]
+  Dim ml As XmlElement
+  Dim hea As String
+  Dim hth As New HTmlDocument
+  Dim str As String
+  Dim s As String
+  Dim em As String
+  Dim sto As String
+  Dim dt As String
+  Dim strx As String
+
+  ' Mail header
+  hea = fil.FileLoad(cdt["File"])[6]
+  hth.FromString(hea)
+  mlx = hth.GetElementsByTagName("tr")
+  If mlx.Count > 0 Then
+    For Each ml In mlx
+      If ml.Value Then
+        If InStr(ml.Value, ": ") Then
+          str = Split(Replace(ml.Value, ": ", "\t"), "\t")[1]
+          Select Split(Replace(ml.Value, ": ", "\t"), "\t")[0]
+            Case "Subject"
+              For Each s In Split(str, " ")
+                If InStr(s, "#") Then
+                  ite.Add(s, "Subject")
+                  Break
+                Else
+                  ite.Add(str, "Subject")
+                Endif
+              Next
+            Case "From"
+              For Each s In Split(str, " ")
+                If InStr(s, "@") Then
+                  em = Replace(s, "<", "")
+                  em = Replace(em, ">", "")
+                  ite.Add(em, "From")
+                Else
+                  sto = Replace(s, "\"", "")
+                  ite.Add(sto, "Store")
+                Endif
+              Next
+
+            Case "Date"
+              dt = Replace(str, "/", "~")
+              dt = Replace(dt, " ", "~")
+              dt = Replace(dt, ":", "~")
+              dt = Format(Date(CInt("20" & Split(dt, "~")[2]), CInt(Split(dt, "~")[1]), CInt(Split(dt, "~")[0]), CInt(Split(dt, "~")[3]), CInt(Split(dt, "~")[4])), "yyyy.mm.dd:hh.nn")
+              ite.Add(dt, "Date")
+            Case "To"
+              ite.Add(str, "To")
+          End Select
+        Endif
+      Endif
+    Next
+  Endif
+
+  htd.Open(cdt["File"])
+
+  If InStr(htd.Title, "#") > 0 Then
+    order = Split(htd.Title, "#")[1]
+  Endif
+  trx = htd.GetElementsByTagName("tr")
+
+  If trx.Count > 0 Then
+    For Each tr In trx
+      If tr.Children.Count > 0 Then
+
+        tdx = tr.GetChildrenByTagName("td")
+        If tdx.Count = 3 Then
+          ctn.Clear
+          If tdx[0].Children.Count > 0 Then
+            For Each chi In tdx[0].Children
+              For Each att In chi.Attributes
+                Select att.Name
+                  Case "href"
+                    ctn.Add(att.Value, "Link")
+                End Select
+              Next
+              If chi.Children.Count > 0 Then
+                For Each gch In chi.Children
+                  If gch.Name = "img" Then
+                    For Each att In gch.Attributes
+                      Select att.Name
+                        Case "src"
+                          ctn.Add(att.Value, "Image")
+                      End Select
+                    Next
+                  Endif
+                Next
+              Endif
+
+            Next
+          Endif
+
+          If InStr(tdx[2].Value, "Kč") > 0 Then
+            If tdx[1].Children.Count > 1 Then
+              prod = tdx[1].Children[1].Value
+              While InStr(prod, "  ") > 0
+                prod = Replace(prod, "  ", " ")
+              Wend
+              prod = vag.Chek4SQL(prod)
+              ' Ver si se puede extraer alguna info extra.
+              biocls = ""
+              If InStr(String.LCase(prod), " bio ") > 0 Then
+                biocls = "bio"
+              Endif
+
+              price = tdx[2].Children[0].Value
+              While InStr(price, "  ") > 0
+                price = Replace(price, "  ", " ")
+              Wend
+              price = Replace(price, "\r\n", "\t")
+              price = Replace(price, "\n", "\t")
+              price = Replace(price, " ", "")
+              price = Replace(price, "&nbsp;Kč\t", "\tKč")
+              price = Replace(price, "&times;\t", "\t")
+              curr = Split(price, "\t")[3]
+              times = Split(price, "\t")[1]
+              price = Split(price, "\t")[2]
+              ctn.Add(prod, "Item")
+              ctn.Add(Val(times), "Times")
+              ctn.Add(Val(price), "Price")
+              ctn.Add(curr, "Currency")
+              ctn.Add(biocls, "Bioclass")
+            Endif
+
+            ite.Add(ctn.Copy(), order & "\t" & CStr(j))
+            Inc j
+          Endif
+        Endif
+      Endif
+    Next
+  Endif
+
+  Return ite
+
+End
