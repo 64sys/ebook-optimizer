@@ -225,7 +225,7 @@
       Expand = True
       Arrangement = Arrange.Horizontal
       { Panel8 HSplit
-        MoveScaled(0,1,77,45)
+        MoveScaled(3,1,77,45)
         Expand = True
         { pnlTextEditor Panel
           MoveScaled(10,2,56,42)
@@ -249,6 +249,7 @@
             Expand = True
             Border = False
             ScrollBar = Scroll.Vertical
+            Mode = "HTML"
             ShowCurrent = True
             ShowLineNumber = True
             ShowModified = True

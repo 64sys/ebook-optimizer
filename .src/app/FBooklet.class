@@ -139,7 +139,7 @@ Public Sub Run() As Boolean
   Next
 
   HSplit1.Layout = [1, 7]
-  Panel8.Layout = [1, 0, 2, 0, 1]
+  Panel8.Layout = [2, 0, 2]
   tobTextWrap.Value = True
   AplyTheme()
 
@@ -233,6 +233,13 @@ Public Sub Menuapp(s As String, Optional sMod As String)
   Dim tocContent As String
   Dim fileImage As String
   Dim directoryLast As String
+  Dim textContent As String
+  Dim listContent As New Collection
+  Dim chap As Variant
+  Dim variantLine As Variant
+  Dim bookContent As New Collection
+  Dim chapter As Integer
+  Dim chapterContent As New String[]
 
   Select s
 
@@ -249,65 +256,109 @@ Public Sub Menuapp(s As String, Optional sMod As String)
         pnlTree.Visible = True
       Endif
 
-    Case "openpdf"
+    Case "openfile"
       ActivityLogger.Stop
       sfx.Clear
 
-      sfx = dsk.FileChooser(, ["pdf"])
+      sfx = dsk.FileChooser(, ["pdf", "odt", "doc", "docx", "txt", "html"])
 
       If sfx.Count > 0 Then
 
         For Each f In sfx
           flw.Clear
-          '' > Abrir el pdf inicial
-          rpdf = New PdfDocument(f)
-          flw.Add("raw", "flow")
-          Flow(flw)
 
-          'Endif
-          '' Habilitar los controles de tratamiento de PDF y de extracción de imagenes
-          directoryWorking = File.Dir(f) &/ Format(Now(), "yyyymmddhhnn")
-          directoryWorking &= "-" & Replace(String.LCase(vag.NoSymbols(File.BaseName(f))), " ", "-")
+          Select Lower(File.Ext(f))
+            Case "odt"
+              If Exist(f) Then
+                Shell "unzip -p '" & f & "' content.xml 2>&1" To textContent
+                listContent = xmg.XML2Collection(textContent)
+                If listContent.Count > 0 Then
+                  bookContent.Clear
+                  For Each variantLine In listContent
+                    Select TypeOf(variantLine)
+                      Case 9
+                        'Print variantLine
+                        chapterContent.Add(variantLine)
 
-          If Exist(directoryWorking &/ "time.log") Then
-            iTime = File.Load(directoryWorking &/ "time.log")
-          Else
-            iTime = 0
-          Endif
+                      Case 16
+                        Select variantLine[1]
+                          Case "1"
+                            bookContent["title"] = variantLine[0]
+                          Case "2"
+                            If bookContent.Exist(CStr(chapter)) = False Then
+                              bookContent[CStr(chapter)] = ["title": variantLine[0]]
+                            Endif
+                            If chapterContent.Count > 0 Then
+                              bookContent[CStr(chapter)].Add(chapterContent.Copy(), "text")
+                              chapterContent.Clear
+                              Inc chapter
+                              'Else
+                              '  bookContent[CStr(chapter)] = ["title": variantLine[0]]
+                            Endif
+                            'chapterContent.Add(variantLine[0], listContent.Key)
 
-          ActivityLogger.Start
+                        End Select
+                        'Print variantLine
+                    End Select
+                  Next
+                  Print bookContent.Count
+                Endif
 
-          CreatePaths(directoryWorking)
-
-          ' Desencriptando el PDF
-          pdfDecrypted = bat.PDFDecrypt(f, "/tmp/decripted.pdf")
-          ' Descomprimiendo el PDF
-          pdfUncompressed = bat.PDFDecompress(pdfDecrypted, "/tmp/uncompresed.pdf")
-          ' Quitanto texto que no interesa que salga
-          'pdfTextReplaced = bat.PDFReplace(unc, "www.allitebooks.com", "", "/tmp/textreplaced.pdf")
-
-          If Exist(pdfUncompressed) Then
-            If Stat(pdfUncompressed).Type = gb.File Then
-              If Exist(pdfWork) Then
-                Shell "rm '" & pdfWork & "'" Wait
               Endif
-              Shell "cp '" & pdfUncompressed & "' '" & pdfWork & "'" Wait
-            Endif
-          Endif
 
-          If Exist(pdfWork) Then
-            xpdf = New PdfDocument(pdfWork)
-            bookLanguage = "spa"
-            Pages2Image(False)
+              'bookContent =
 
-            bat.PdfExtractImages(pdfWork, directoryImagesBook)
+            Case "pdf"
+              '' > Abrir el pdf inicial
+              rpdf = New PdfDocument(f)
+              flw.Add("raw", "flow")
+              Flow(flw)
 
-            LoadBookData()
+              '' Habilitar los controles de tratamiento de PDF y de extracción de imagenes
+              directoryWorking = File.Dir(f) &/ Format(Now(), "yyyymmddhhnn")
+              directoryWorking &= "-" & Replace(String.LCase(vag.NoSymbols(File.BaseName(f))), " ", "-")
 
-            flw.Add("cooked", "flow")
-            Flow(flw)
+              If Exist(directoryWorking &/ "time.log") Then
+                iTime = File.Load(directoryWorking &/ "time.log")
+              Else
+                iTime = 0
+              Endif
 
-          Endif
+              ActivityLogger.Start
+
+              CreatePaths(directoryWorking)
+
+              ' Desencriptando el PDF
+              pdfDecrypted = bat.PDFDecrypt(f, "/tmp/decripted.pdf")
+              ' Descomprimiendo el PDF
+              pdfUncompressed = bat.PDFDecompress(pdfDecrypted, "/tmp/uncompresed.pdf")
+              ' Quitanto texto que no interesa que salga
+              'pdfTextReplaced = bat.PDFReplace(unc, "textoreplace", "", "/tmp/textreplaced.pdf")
+
+              If Exist(pdfUncompressed) Then
+                If Stat(pdfUncompressed).Type = gb.File Then
+                  If Exist(pdfWork) Then
+                    Shell "rm '" & pdfWork & "'" Wait
+                  Endif
+                  Shell "cp '" & pdfUncompressed & "' '" & pdfWork & "'" Wait
+                Endif
+              Endif
+
+              If Exist(pdfWork) Then
+                xpdf = New PdfDocument(pdfWork)
+                bookLanguage = "spa"
+                Pages2Image(False)
+
+                bat.PdfExtractImages(pdfWork, directoryImagesBook)
+
+                LoadBookData()
+
+                flw.Add("cooked", "flow")
+                Flow(flw)
+
+              Endif
+          End Select
+
         Next
       Endif
 
@@ -2366,7 +2417,9 @@ Public Sub Meta_Change()
 
 End
 
-Public Sub AplyTheme(Optional strPath As String) '' Carga el tema de visualizacion para el TextEditor
+'' Carga el tema de visualizacion para el TextEditor
+
+Public Sub AplyTheme(Optional strPath As String)
 
   Dim tgg As String
   Dim tmp As String
@@ -2383,10 +2436,9 @@ Public Sub AplyTheme(Optional strPath As String) '' Carga el tema de visualizaci
   If Application.DarkTheme Then
     strPath = "./editor-themes/oblivion.theme"
   Else
-    strPath = "./editor-themes/gambas.theme"
+    strPath = "./editor-themes/zen.theme"
   Endif
 
-  'If Exist(strPath) Then
   For Each r In Split(File.Load(strPath), "\n")
     If InStr(r, "=") > 0 Then
       tgg = Split(r, "=")[0]
@@ -2636,6 +2688,8 @@ Public Sub tobConsistencyCheck_Click()
 
 End
 
+'' <ul><li>~ Spring</li><li># Valuebox</li><li>! SwitchButton</li></ul>
+
 Public Sub IconsLoad(iconsContainer As Container)
 
   Dim listOrders As New Collection
@@ -2649,6 +2703,9 @@ Public Sub IconsLoad(iconsContainer As Container)
   Dim spr As Spring
   Dim sType As String
   Dim Tip As String
+  Dim vxo As ValueBox
+  Dim sTag As String
+  Dim swh As SwitchButton
 
   btx.Clear
   shx.Clear
@@ -2660,7 +2717,10 @@ Public Sub IconsLoad(iconsContainer As Container)
     Case "tools"
       listOrders.Add(("Menu"), "menu")
       listOrders.Add("~", "~1")
-      listOrders.Add(("Open file"), "openpdf")
+      listOrders.Add(("Previous page"), "back") 'back
+      listOrders.Add(("Go to page"), "#goto") 'value
+      listOrders.Add(("Next page"), "next") 'next
+      listOrders.Add(("Open file"), "openfile")
       listOrders.Add(("Open project"), "openproject")
       listOrders.Add(("Open post-processing tool"), "postprocessing")
       listOrders.Add(("Open directory"), "opendir")
@@ -2670,45 +2730,58 @@ Public Sub IconsLoad(iconsContainer As Container)
       listOrders.Add(("Imposition A5"), "ia5")
       listOrders.Add(("Imposition A6"), "ia6")
       listOrders.Add("~", "~2")
+      listOrders.Add(("Override text"), "!overridetext")
       listOrders.Add(("Quit"), "quit")
   End Select
 
   For Each Tip In listOrders 'btx.Max
     Select Mid(listOrders.Key, 1, 1)
+      Case "!"
+        swh = New SwitchButton(iconsContainer)
+        With swh
+          .W = 72
+          .H = 35
+        End With
+
       Case "~"
         spr = New Spring(iconsContainer)
+        With spr
+          .W = 7
+          .H = 35
+        End With
+
+      Case "#"
+        sTag = Mid(listOrders.Key, 2)
+        vxo = New ValueBox(iconsContainer)
+        With vxo
+          .Name = listOrders.Key
+          .H = 35
+          .W = 48
+          .Alignment = Align.Center
+          .Tag = sTag
+          .Tooltip = Tip
+        End With
+
       Case Else
+        sType = "ToolButton"
+        sPic = "./svg/custom/" & iconsContainer.tag &/ listOrders.Key & ".svg"
+        tob = New ToolButton(iconsContainer) As "menuapp"
 
-        Select iconsContainer.Tag
-          Case "file"
-            sType = "ToolButton"
-            pic = Stock["24/" & listOrders.Key]
-            tob = New ToolButton(iconsContainer) As "menuapp"
-
-          Case Else
-            sType = "ToolButton"
-            sPic = "./svg/custom/" & iconsContainer.tag &/ listOrders.Key & ".svg"
-            tob = New ToolButton(iconsContainer) As "menuapp"
-
-            If Exist(sPic) Then
-              svg = dsk.Contrary(sPic, "#0066b3")
-              pic = Image.FromString(svg).Stretch(24, 24).Picture
-            Else
-              pic = Stock["icon:/24/error"]
-            Endif
-
-        End Select
+        If Exist(sPic) Then
+          svg = dsk.Contrary(sPic, "#0066b3")
+          pic = Image.FromString(svg).Stretch(24, 24).Picture
+        Else
+          pic = Stock["icon:/24/error"]
+        Endif
 
         With tob
           .Name = listOrders.Key
           .H = 35
           .W = 35
           .Tag = listOrders.Key
-          .Tooltip = Tip 'shx[i]
+          .Tooltip = Tip
           .Picture = pic
         End With
-
-        'End Select
 
     End Select
   Next

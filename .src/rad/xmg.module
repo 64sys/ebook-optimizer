@@ -26,6 +26,95 @@
 
 Export
 
+'' Returns a collection. As an input parameter it requires the path to the xml file.
+
+Public Function XML2Collection(strXML As String) As Collection
+
+  Dim document As New XmlDocument
+  Dim ctn As New Collection
+  Dim node As XmlNode
+  Dim child As XmlNode
+  Dim var As Variant
+  Dim strName As String
+  Dim strData As String
+  Dim strCtrl As String
+  Dim strDesc As String
+  Dim chap As Integer
+  Dim phar As Integer
+  Dim int As Integer
+  Dim att As XmlNode
+  Dim stx As New String[]
+  Dim xref As String
+  Dim obj As XmlNode
+  Dim img As XmlNode
+
+  document.FromString(strXML)
+  chap = 0
+
+  ' Carga del XML
+  For Each node In document.All
+    If node.Children.Count > 0 Then
+      For Each child In node.Children
+
+        If stx.Exist(child.Name) = False Then
+          stx.Add(child.Name)
+        Endif
+
+        Select child.Name
+          Case "text:h"
+            phar = 1
+            Inc chap
+            '
+            'Print child.Name & ": " & child.Value
+            If child.Attributes.Count > 0 Then
+              ' Print child.Name & ": " & child.Value
+              For Each att In child.Attributes
+
+                If att.Name = "text:outline-level" Then
+                  ctn.Add([child.Value, att.Value], child.Name & "\t" & CStr(chap))
+                Endif
+
+              Next
+            Endif
+            'Print " "
+
+          Case "text:p"
+            If child.Value <> "" Then
+              ctn.Add(child.Value, child.Name & "\t" & CStr(chap) & ":" & CStr(phar))
+              Inc phar
+            Endif
+            If child.Children.Count > 0 Then
+              For Each obj In child.Children
+                If obj.Name = "draw:frame" Then
+                  If obj.Children.Count > 0 Then
+                    For Each img In obj.Children
+                      If img.Attributes.Count > 0 Then
+                        For Each att In img.Attributes
+                          Select att.Name
+                            Case "xlink:href"
+                              xref = att.Value
+                            Case "loext:mime-type"
+                              ctn.Add(xref, img.Name & "\t" & CStr(chap) & ":" & CStr(phar))
+                              Inc phar
+                          End Select
+                        Next
+                      Endif
+                    Next
+                  Endif
+                Endif
+              Next
+            Endif
+
+        End Select
+      Next
+    Endif
+
+  Next
+  File.Save(User.Home &/ "odttags.txt", stx.Join("\n"))
+  Return ctn
+
+End
+
 '' Returns a collection. As input parameter, require the path to the xml file.
 
 Public Function XmlConfRead(strXFile As String, strChild As String) As Collection
