@@ -25,6 +25,52 @@
 
 Export
 
+'' Convert Markdown format to HTML
+
+Public Function Markdown2HTML(text As String) As String
+
+  Dim texLine As String
+  Dim firstSpace As Integer
+  Dim textHTML As String
+
+  For Each texLine In Split(text, "\n")
+    firstSpace = InStr(texLine, " ")
+
+    If firstSpace > 0 Then
+      Select Split(texLine, " ")[0]
+
+        Case "#"
+          textHTML &= "<h1>" & String.Mid(texLine, firstSpace) & "</h1>\n"
+
+        Case "##"
+          textHTML &= "<h2>" & String.Mid(texLine, firstSpace) & "</h2>\n"
+
+        Case "###"
+          textHTML &= "<h3>" & String.Mid(texLine, firstSpace) & "</h3>\n"
+
+        Case "####"
+          textHTML &= "<h4>" & String.Mid(texLine, firstSpace) & "</h4>\n"
+
+        Case "#####"
+          textHTML &= "<h5>" & String.Mid(texLine, firstSpace) & "</h5>\n"
+
+        Case "######"
+          textHTML &= "<h6>" & String.Mid(texLine, firstSpace) & "</h6>\n"
+
+        Case Else
+          textHTML &= "<p>" & texLine & "</p>\n"
+
+      End Select
+    Else
+      textHTML &= "<p>" & texLine & "</p>\n"
+    Endif
+
+  Next
+
+  Return textHTML
+
+End
+
 '' Convert an html file to Markdown using the pandoc program.
 
 Public Function Html2Md(sPath As String) As String

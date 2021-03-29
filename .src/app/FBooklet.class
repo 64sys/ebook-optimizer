@@ -47,7 +47,8 @@ Private pdfUncompressed As String               '' PDF descomprimido
 Private pdfReplacedTexts As String               '' PDF con los textos reemplazados
 Private pdfWork As String               '' PDF de trabajo que paso todos los procesos de adecuación
 Private pageIndex As Integer              '' Número de página actual
-Private pageTextFile As String               '' TXT actual
+'Private pageTextFile As String               '' TXT actual
+Private currentTextFile As String               '' TXT actual
 Private textErrors As New Collection      '' Errors detected page/[lines]
 Private ren As String               '' Image path to rener from the current html file
 
@@ -240,6 +241,10 @@ Public Sub Menuapp(s As String, Optional sMod As String)
   Dim bookContent As New Collection
   Dim chapter As Integer
   Dim chapterContent As New String[]
+  Dim dataChapter As Variant
+  Dim texMarkdown As String
+  Dim textParagraph As String
+  Dim textMarkdown As String
 
   Select s
 
@@ -266,6 +271,19 @@ Public Sub Menuapp(s As String, Optional sMod As String)
 
         For Each f In sfx
           flw.Clear
+
+          directoryWorking = File.Dir(f) &/ Format(Now(), "yyyymmddhhnn")
+          directoryWorking &= "-" & Replace(String.LCase(vag.NoSymbols(File.BaseName(f))), " ", "-")
+
+          If Exist(directoryWorking &/ "time.log") Then
+            iTime = File.Load(directoryWorking &/ "time.log")
+          Else
+            iTime = 0
+          Endif
+
+          ActivityLogger.Start
+
+          CreatePaths(directoryWorking)
 
           Select Lower(File.Ext(f))
             Case "odt"
@@ -302,8 +320,31 @@ Public Sub Menuapp(s As String, Optional sMod As String)
                     End Select
                   Next
                   Print bookContent.Count
-                Endif
+                  ' If bookContent.Exist("title") Then
+                  '   textMarkdown &= ChangeTag(bookContent["title"], "#") & "\n\n"
+                  ' Endif
 
+                  For Each dataChapter In bookContent
+                    If bookContent.Key = "title" Then
+                      textMarkdown &= ChangeTag(dataChapter, "#", "md") & "\n\n"
+                    Else
+                      textMarkdown &= ChangeTag(dataChapter["title"], "##", "md") & "\n\n"
+                      For Each textParagraph In dataChapter["text"]
+                        textMarkdown &= textParagraph & "\n\n"
+                      Next
+                    Endif
+
+                  Next
+                  If Exist(directoryWorking) Then
+                    File.Save(directoryWorking &/ "book.md", textMarkdown)
+                    LoadBookData()
+
+                    TextEditor1.Text = textMarkdown
+
+                    'Desktop.Open(directoryWorking &/ "book.md")
+                  Endif
+
+                Endif
               Endif
 
               'bookContent =
@@ -311,22 +352,22 @@ Public Sub Menuapp(s As String, Optional sMod As String)
             Case "pdf"
               '' > Abrir el pdf inicial
               rpdf = New PdfDocument(f)
-              flw.Add("raw", "flow")
-              Flow(flw)
+              'flw.Add("raw", "flow")
+              'Flow(flw)
 
-              '' Habilitar los controles de tratamiento de PDF y de extracción de imagenes
-              directoryWorking = File.Dir(f) &/ Format(Now(), "yyyymmddhhnn")
-              directoryWorking &= "-" & Replace(String.LCase(vag.NoSymbols(File.BaseName(f))), " ", "-")
-
-              If Exist(directoryWorking &/ "time.log") Then
-                iTime = File.Load(directoryWorking &/ "time.log")
-              Else
-                iTime = 0
-              Endif
-
-              ActivityLogger.Start
-
-              CreatePaths(directoryWorking)
+              ' '' Habilitar los controles de tratamiento de PDF y de extracción de imagenes
+              ' directoryWorking = File.Dir(f) &/ Format(Now(), "yyyymmddhhnn")
+              ' directoryWorking &= "-" & Replace(String.LCase(vag.NoSymbols(File.BaseName(f))), " ", "-")
+              '
+              ' If Exist(directoryWorking &/ "time.log") Then
+              '   iTime = File.Load(directoryWorking &/ "time.log")
+              ' Else
+              '   iTime = 0
+              ' Endif
+              '
+              ' ActivityLogger.Start
+              '
+              ' CreatePaths(directoryWorking)
 
               ' Desencriptando el PDF
               pdfDecrypted = bat.PDFDecrypt(f, "/tmp/decripted.pdf")
@@ -353,8 +394,8 @@ Public Sub Menuapp(s As String, Optional sMod As String)
 
                 LoadBookData()
 
-                flw.Add("cooked", "flow")
-                Flow(flw)
+                'flw.Add("cooked", "flow")
+                'Flow(flw)
 
               Endif
           End Select
@@ -404,11 +445,13 @@ Public Sub Menuapp(s As String, Optional sMod As String)
             Settings["Last"] = directoryWorking
             Print "directorio valido"
             'ctx.Clear
-            xpdf = New PdfDocument(pdfWork)
+            If Exist(pdfWork) Then
+              xpdf = New PdfDocument(pdfWork)
+            Endif
             bookLanguage = "spa"
             LoadBookData()
-            flw.Add("cooked", "flow")
-            Flow(flw)
+            'flw.Add("cooked", "flow")
+            'Flow(flw)
           Endif
         Endif
       Endif
@@ -791,7 +834,7 @@ Private Sub CheckPaths() As Boolean
 
   bol = True
 
-  For Each pth In [directoryImagesThumbnails, directoryImagesBook, directoryTextBook, directoryImagesBook, directoryImagesBook, pdfWork]
+  For Each pth In [directoryImagesThumbnails, directoryImagesBook, directoryTextBook, directoryImagesBook, directoryImagesBook]
 
     If Exist(pth) = False
       Message.Info(("El directorio seleccionado no es apto"))
@@ -881,6 +924,8 @@ Private Sub LoadBookData()
   Dim textContent As String
   Dim img As Image
   Dim textFile As String
+  Dim svg As String
+  Dim pic As Picture
 
   '' List of images in each page
   ListOfImagesPharagraph()
@@ -965,80 +1010,73 @@ Private Sub LoadBookData()
     TreeView1.Add(bookMetadata.Key, vrt[2], Picture["icon:/16/attach"], "meta")
   Next
 
-  ' Luego cargo las páginas
-  TreeView1.Add("pages", ("Pages"), Picture["icon:/16/text"], "book")
-  For i = 0 To xpdf.Max
-    imageLowResolution = directoryImagesThumbnails &/ Format(i, "0000") & ".jpeg"
-    'imageHighResolution = directoryImagesBook &/ Format(i, "0000") & ".jpeg"
-    imageForOCR = directoryImagesBook &/ Format(i, "0000") & ".png"
-    textFile = directoryTextBook &/ Format(i, "0000") & ".html"
+  If Exist(directoryWorking &/ "book.md") Then
 
-    '' Exist Thumbnail?
-    If Exist(imageLowResolution) = False Then
-      img = xpdf[i].Render(,,,,, 72)
-      img.Save(imageLowResolution, 25)
+    svg = dsk.Contrary("./svg/custom/general/md.svg", "#0066b3")
+    pic = Image.FromString(svg).Stretch(16, 16).Picture
+    TreeView1.Add("md", "Mark Down", pic, "book")
 
-    Endif
-    '' Is needed a image to do OCR?
-    If xpdf[i].Text = "" Then
-      If Exist(imageForOCR) = False Then
-        If Exist(bat.PdfPage2Image(pdfWork, i, imageForOCR)) Then
-          textOCR = bat.PngOcrText(imageForOCR, "spa")
-          If textOCR <> "" Then
-            textContent = vag.XmlValidate(textOCR, "utf-8")
-            textContent = vag.Paragraph(textContent, "html5")
-            File.Save(textFile, textContent)
+  Endif
+
+  '' Luego cargo las páginas si existe un pdf
+  If xpdf Then
+    TreeView1.Add("pages", ("Pages"), Picture["icon:/16/text"], "book")
+    For i = 0 To xpdf.Max
+      imageLowResolution = directoryImagesThumbnails &/ Format(i, "0000") & ".jpeg"
+      'imageHighResolution = directoryImagesBook &/ Format(i, "0000") & ".jpeg"
+      imageForOCR = directoryImagesBook &/ Format(i, "0000") & ".png"
+      textFile = directoryTextBook &/ Format(i, "0000") & ".html"
+
+      '' Exist Thumbnail?
+      If Exist(imageLowResolution) = False Then
+        img = xpdf[i].Render(,,,,, 72)
+        img.Save(imageLowResolution, 25)
+
+      Endif
+      '' Is needed a image to do OCR?
+      If xpdf[i].Text = "" Then
+        If Exist(imageForOCR) = False Then
+          If Exist(bat.PdfPage2Image(pdfWork, i, imageForOCR)) Then
+            textOCR = bat.PngOcrText(imageForOCR, "spa")
+            If textOCR <> "" Then
+              textContent = vag.XmlValidate(textOCR, "utf-8")
+              textContent = vag.Paragraph(textContent, "html5")
+              File.Save(textFile, textContent)
+            Else
+              Main.lgg(("Error trying to extract text from image") & ". " & "[" & CStr(i) & "]")
+            Endif
           Else
-            Main.lgg(("Error trying to extract text from image") & ". " & "[" & CStr(i) & "]")
+            Main.lgg(("Error trying to extract image from page") & ". " & File.Name(xpdf) & "[" & CStr(i) & "]")
           Endif
-        Else
-          Main.lgg(("Error trying to extract image from page") & ". " & File.Name(xpdf) & "[" & CStr(i) & "]")
         Endif
+
       Endif
 
-    Endif
-
-    ' If Exist(imageLowResolution) = False Then
-    '   If Exist(imageHighResolution) Then
-    '     img = Image.Load(imageHighResolution)
-    '     imageWidth = 256
-    '     imageHeight = (imageWidth * img.H) / img.W
-    '
-    '     img.Stretch(imageWidth, imageHeight).Save(imageLowResolution, 25)
-    '
-    '   Endif
-    ' Endif
-
-    If Exist(imageLowResolution) Then
-      If Application.DarkTheme Then
-        pix = Image.Load(imageLowResolution).Stretch(48, 56).Erase(Color.White).Invert(False).Picture
+      If Exist(imageLowResolution) Then
+        If Application.DarkTheme Then
+          pix = Image.Load(imageLowResolution).Stretch(48, 56).Erase(Color.White).Invert(False).Picture
+        Else
+          pix = Image.Load(imageLowResolution).Stretch(48, 56).Picture
+        Endif
       Else
-        pix = Image.Load(imageLowResolution).Stretch(48, 56).Picture
+        pix = Picture["icon:/16/text-fill"]
       Endif
-    Else
-      pix = Picture["icon:/16/text-fill"]
-    Endif
 
-    TreeView1.Add(CStr(i), Format(i, "0000"), pix, "pages")
-
-    ' ' tmx.Add(ilq, "ilq")
-    ' ' type = xmg.GetVar("Page/1/type", exd &/ "book.xml")
-    ' ' tmx.Add(type, "type")
-    ' ' tmx.Add(i, "page")
-    ' '
-    ' ' ctx.Add(tmx.Copy(), CStr(i))
-
-  Next
+      TreeView1.Add(CStr(i), Format(i, "0000"), pix, "pages")
+    Next
+  Endif
 
   TreeView1["book"].Expanded = True
-  TreeView1["pages"].Expanded = True
 
-  For xp = 0 To TreeView1["pages"].Count - 1
-    If TreeView1.Exist(CStr(xp)) Then
-      TreeView1[CStr(xp)].Selected = True
-      Break
-    Endif
-  Next
+  If TreeView1.Exist("pages") Then
+    TreeView1["pages"].Expanded = True
+    For xp = 0 To TreeView1["pages"].Count - 1
+      If TreeView1.Exist(CStr(xp)) Then
+        TreeView1[CStr(xp)].Selected = True
+        Break
+      Endif
+    Next
+  Endif
 
 End
 
@@ -1447,7 +1485,7 @@ Public Sub MenuEditor(sTag As String)
       TextEditorLoad()
 
     Case "ctrl+s", "save"
-      TextEditor1.Save(pageTextFile)
+      TextEditor1.Save(currentTextFile)
       TextLabelLoad()
       RefreshWebview()
       RefreshImagesParagraphPanel()
@@ -1470,7 +1508,7 @@ Public Sub MenuEditor(sTag As String)
 
     Case "html"
       'XhtmlCleaner(strTextFile)
-      XhtmlCleaner(pageTextFile)
+      XhtmlCleaner(currentTextFile)
 
     Case "ctrl+1", "ctrl+2", "ctrl+3", "ctrl+4", "ctrl+5", "ctrl+6", "ctrl+p"
       str = TextEditor1[intPosLine].Text
@@ -1625,8 +1663,8 @@ Public Sub MenuEditor(sTag As String)
       TextEditor1.Text = str
 
     Case "check"
-      If Exist(pageTextFile) Then
-        str = File.Load(pageTextFile)
+      If Exist(currentTextFile) Then
+        str = File.Load(currentTextFile)
         str = vag.ConvertPath(str)
         Print str
       Endif
@@ -1682,8 +1720,8 @@ End
 
 Public Sub TextEditorLoad()
 
-  If Exist(pageTextFile) = True Then
-    TextEditor1.Load(pageTextFile)
+  If Exist(currentTextFile) = True Then
+    TextEditor1.Load(currentTextFile)
   Endif
 
 End
@@ -1693,9 +1731,9 @@ Public Sub TextLabelLoad()
   Dim str As String
   Dim sContent As String
 
-  If Exist(pageTextFile) = True Then
+  If Exist(currentTextFile) = True Then
 
-    str = Replace(File.Load(pageTextFile), "../Images", directoryImagesParagraphs)
+    str = Replace(File.Load(currentTextFile), "../Images", directoryImagesParagraphs)
 
     sContent = "<html><head></head><body style=\"color: " & Main.sForeground & "; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;\">\n"
     sContent &= str & "\n"
@@ -1771,9 +1809,9 @@ Public Sub XhtmlCleaner(strFile As String) As String
 
 End
 
-'' Change tag works as ctrl+1, 2, 3, 4, 5, 6, p
+'' Change tag works as ctrl+1, 2, 3, 4, 5, 6, p. Format mode is "html" by default but "md" is available to
 
-Public Function ChangeTag(strIn As String, strTag As String) As String
+Public Function ChangeTag(strIn As String, strTag As String, Optional formatMode As String) As String
 
   Dim stxBody As New String[]
   Dim stxHtml As New String[]
@@ -1827,12 +1865,23 @@ Public Function ChangeTag(strIn As String, strTag As String) As String
       strText = vag.ConvertPath(strText)
       For Each tag In stxBody
         If tag = String.LCase(strTag) Then
-          strOut = "<" & tag & ">" & strText & "</" & tag & ">"
+          Select formatMode
+            Case "", "html"
+              strOut = "<" & tag & ">" & strText & "</" & tag & ">"
+            Case "md"
+              strOut = tag & " " & strText
+          End Select
           Break
         Endif
       Next
     Else
-      strOut = "<" & strTag & ">" & str & "</" & strTag & ">"
+      Select formatMode
+        Case "", "html"
+          strOut = "<" & strTag & ">" & str & "</" & strTag & ">"
+        Case "md"
+          strOut = strTag & " " & str
+      End Select
+
     Endif
   Else
     strOut = strIn
@@ -2052,142 +2101,36 @@ Public Sub TreeView1_Select()
   If TreeView1.Item Then
     Select TreeView1.Item.ParentKey
       Case "meta"
-        Print TreeView1.Key
-        Label1.Text = String.UCaseFirst(TreeView1.Key)
-
-      Case "book"
+        'Print TreeView1.Key
+        'Label1.Text = String.UCaseFirst(TreeView1.Key)
         '' Is the content section
         AplyMode("metadata")
 
+      Case "book"
+        Select TreeView1.Key
+          Case "md"
+            AplyMode("pages")
+            If Exist(directoryWorking &/ "book.md") Then
+              currentTextFile = directoryWorking &/ "book.md"
+            Endif
+            RefreshWebview()
+        End Select
+
       Case "pages"
         AplyMode("pages")
-        'ScrollView1.Children.Clear
         pageIndex = CInt(TreeView1.Key)
 
         ValueBox1.Value = pageIndex
-
-        'imageLowResolution = directoryImagesThumbnails &/ Format(pageIndex, "0000") & ".jpeg"
-        'imageHighResolution = directoryImagesBook &/ Format(pageIndex, "0000") & ".jpeg"
         imageForOCR = directoryImagesOCR &/ Format(pageIndex, "0000") & ".png"
 
-        pageTextFile = directoryTextBook &/ Format(pageIndex, "0000") & ".html"
-
-        'ren = directoryTextBook &/ Format(pageIndex, "0000") & ".jpeg" ' Render image
+        currentTextFile = directoryTextBook &/ Format(pageIndex, "0000") & ".html"
 
         RefreshImagesParagraphPanel()
-        ' pnlPageImages.Children.Clear
-        ' pnlPageImages.Arrangement = Arrange.Horizontal
-        '
-        ' xspring = New ToolButton(pnlPageImages) As "xSpring"
-        ' With xspring
-        '   .Tag = "1"
-        '   .Name = "1"
-        '   .Border = False
-        '   .W = 40
-        '   .H = 40
-        '   .Expand = True
-        ' End With
-        ' Wait 0.01
-        '
-        ' If listImagesParagraphs.Exist(TreeView1.Key) Then '' pdfimages comienza a numear las paginas en 1 mientras que en este programa se hace desde 0
-        '
-        '   pnlPageImages.Visible = True
-        '   pnlPageImages.Arrangement = Arrange.Row
-        '
-        '   If listImagesParagraphs.Exist(TreeView1.Key) Then
-        '     For Each sPic In listImagesParagraphs[TreeView1.Key]
-        '       If Exist(sPic) Then
-        '         If Stat(sPic).Type = gb.File Then
-        '           tob = New ToolButton(pnlPageImages) As "ipic"
-        '
-        '           With tob
-        '             .Name = sPic
-        '             img = Image.Load(sPic)
-        '             If Application.DarkTheme Then
-        '               img.Invert()
-        '             Endif
-        '             iHeight = pnlPageImages.Height
-        '             iWidth = iHeight * (img.Width / img.Height)
-        '
-        '             .Picture = img.Stretch(iWidth, iHeight).Picture
-        '             .W = iWidth
-        '             .H = iHeight
-        '             .Tag = sPic
-        '             .Expand = True
-        '           End With
-        '         Endif
-        '       Endif
-        '     Next
-        '
-        '   Endif
-        '
-        ' Else
-        '   pnlPageImages.Children.Clear
-        '   pnlPageImages.Visible = False
-        ' Endif
-        '
-        ' xspring2 = New ToolButton(pnlPageImages) As "xSpring2"
-        ' With xspring2
-        '   .Tag = "2"
-        '   .Name = "2"
-        '   .Border = False
-        '   .W = 40
-        '   .H = 40
-        '   .Expand = True
-        '   '.Background = Color.Yellow
-        ' End With
+
         pnlPageImages.Arrangement = Arrange.None
         pnlPageImages.Arrangement = Arrange.Horizontal
 
         RefreshWebview()
-        ' If Exist(pageTextFile) Then
-        '   TextEditor1.Text = File.Load(pageTextFile)
-        '   sContent = "<html><head></head><body style=\"color: " & Main.sForeground & "; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;\">\n"
-        '   textFromFile = File.Load(pageTextFile)
-        '   sContent &= TextLinksReplaced2(textFromFile)
-        '   sContent &= "</body></html>"
-        '   WebView1.HTML = sContent
-        ' Endif
-
-        ' If Exist(pageTextFile) Then
-        '   TextEditor1.Text = File.Load(pageTextFile)
-        '   WebView1.HTML = sContent 'File.Load(txt)
-        '   If textErrors.Count > 0 Then
-        '     If textErrors.Exist(CStr(pageIndex)) Then
-        '       errListTemp = textErrors[CStr(pageIndex)]
-        '
-        '       For errLine = 0 To errListTemp.Max
-        '         TextEditor1[errListTemp[errLine]].Bookmark = True
-        '       Next
-        '     Endif
-        '   Endif
-        ' Endif
-
-        'pix = New PictureBox(ScrollView1) As "pix"
-
-        ' With pix
-        '   .Expand = True
-        '   If Exist(imageHighResolution) Then
-        '     If Application.DarkTheme Then
-        '       .Picture = Image.Load(imageHighResolution).Erase(Color.White).Invert(False).Picture
-        '     Else
-        '       .Picture = Image.Load(imageHighResolution).Picture
-        '     Endif
-        '   Else
-        '     If Exist(bat.PdfPage2Image(pdfWork, pageIndex, imageHighResolution)) Then
-        '       img = Image.Load(imageHighResolution)
-        '       img.Save(imageForOCR, 80)
-        '       img.Save(imageLowResolution, 10)
-        '     Endif
-        '
-        '     If Application.DarkTheme Then
-        '       .Picture = Image.Load(imageHighResolution).Erase(Color.White).Invert(False).Picture
-        '     Else
-        '       .Picture = Image.Load(imageHighResolution).Picture
-        '     Endif
-        '   Endif
-        '   .mode = PictureBox.Contain
-        ' End With
 
     End Select
   Endif
@@ -2294,15 +2237,30 @@ Private Sub RefreshWebview()
   Dim textFromFile As String
   Dim textRaw As String
 
-  If Exist(pageTextFile) Then
-    textRaw = File.Load(pageTextFile)
-    TextEditor1.Text = textRaw
-    sContent = "<html><head></head><body style=\"color: " & Main.sForeground & "; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;\">\n"
-    textFromFile = textRaw
-    sContent &= TextLinksReplaced2(textFromFile)
-    sContent &= "</body></html>"
-    WebView1.HTML = sContent
-    WebView1.Refresh
+  If Exist(currentTextFile) Then
+    Select File.Ext(currentTextFile)
+      Case "html"
+        textRaw = File.Load(currentTextFile)
+        TextEditor1.Text = textRaw
+        sContent = "<html><head></head><body style=\"color: " & Main.sForeground & "; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;\">\n"
+        textFromFile = textRaw
+        sContent &= TextLinksReplaced2(textFromFile)
+        sContent &= "</body></html>"
+        WebView1.HTML = sContent
+        WebView1.Refresh
+
+      Case "md"
+        textRaw = File.Load(currentTextFile)
+        TextEditor1.Text = textRaw
+        sContent = "<html><head></head><body style=\"color: " & Main.sForeground & "; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;\">\n"
+        textFromFile = bat.Markdown2HTML(textRaw)
+        sContent &= TextLinksReplaced2(textFromFile)
+        sContent &= "</body></html>"
+        WebView1.HTML = sContent
+        WebView1.Refresh
+
+    End Select
+
   Endif
 
 End
@@ -2531,7 +2489,7 @@ Public Sub tobReExtractText_Click()
 
   textContent = TexEx(pageIndex)
   textContent = vag.Paragraph(textContent, "html5")
-  File.Save(pageTextFile, textContent)
+  File.Save(currentTextFile, textContent)
   TextEditor1.Text = textContent
   TextEditor1.Refresh
 
@@ -2732,6 +2690,18 @@ Public Sub IconsLoad(iconsContainer As Container)
       listOrders.Add("~", "~2")
       listOrders.Add(("Override text"), "!overridetext")
       listOrders.Add(("Quit"), "quit")
+
+    Case "editor"
+      listOrders.Add(("Extract text from page"), "textpage")
+      listOrders.Add("~", "~1")
+      For i = 1 To 6
+        listOrders.Add(("Title") & " " & CStr(i), "ctrl-" & CStr(i))
+      Next
+      listOrders.Add(("Paragraph"), "ctrl-p")
+      listOrders.Add(("Text wrap"), "wrap")
+
+      listOrders.Add("~", "~2")
+      listOrders.Add(("Save"), "save")
   End Select
 
   For Each Tip In listOrders 'btx.Max

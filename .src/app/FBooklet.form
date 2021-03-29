@@ -132,6 +132,7 @@
     { tobShowMenu ToolButton menuapp
       Name = "tobShowMenu"
       MoveScaled(0,0,5,5)
+      Visible = False
       Tag = "showMenu"
       ToolTip = ("Show tree")
       Picture = Picture["icon:/22/menu"]
@@ -139,6 +140,7 @@
     }
     { pnlIconsPage Panel
       MoveScaled(5,0,44,5)
+      Visible = False
       Arrangement = Arrange.Horizontal
       { tobBack ToolButton menuapp
         Name = "tobBack"
@@ -166,13 +168,21 @@
       }
     }
     { pnlIcons Panel
-      MoveScaled(57,0,8,5)
+      MoveScaled(51,0,8,5)
+      Visible = False
       Tag = "file"
       Expand = True
       Arrangement = Arrange.Horizontal
     }
+    { pnlTools Panel
+      MoveScaled(63,0,11,5)
+      Background = Color.ButtonBackground
+      Tag = "tools"
+      Expand = True
+      Arrangement = Arrange.Horizontal
+    }
     { btoSearch ButtonBox
-      MoveScaled(68,0,24,4)
+      MoveScaled(87,0,24,4)
       Picture = Picture["icon:/22/find"]
     }
     { tobConsistencyCheck ToolButton
@@ -228,21 +238,15 @@
         MoveScaled(3,1,77,45)
         Expand = True
         { pnlTextEditor Panel
-          MoveScaled(10,2,56,42)
+          MoveScaled(10,2,20,42)
           Expand = True
           Arrangement = Arrange.Vertical
           { pnlSearch Panel
-            MoveScaled(1,1,55,5)
+            MoveScaled(1,1,11,5)
             Background = Color.ButtonBackground
-          }
-          { pnlTools Panel
-            MoveScaled(2,7,55,5)
-            Background = Color.ButtonBackground
-            Tag = "tools"
-            Arrangement = Arrange.Horizontal
           }
           { TextEditor1 TextEditor
-            MoveScaled(1,14,55,4)
+            MoveScaled(1,7,11,11)
             Font = Font["Noto Sans Mono Light"]
             Background = Color.TextBackground
             Drop = True
@@ -256,12 +260,13 @@
             ShowIcon = True
           }
           { pnlEditor Panel
-            MoveScaled(1,19,55,5)
+            MoveScaled(1,19,11,5)
             Tag = "editor"
             Arrangement = Arrange.Horizontal
           }
           { pnlTextEditorTools Panel
-            MoveScaled(1,24,55,5)
+            MoveScaled(1,24,11,5)
+            Visible = False
             Background = Color.ButtonBackground
             Tag = "editor"
             Arrangement = Arrange.Horizontal
@@ -281,7 +286,7 @@
             }
             { tobPaste ToolButton menueditor
               Name = "tobPaste"
-              MoveScaled(11,0,5,5)
+              MoveScaled(12,1,5,5)
               Font = Font["Bold"]
               Tag = "paste"
               ToolTip = ("Paste")
@@ -356,14 +361,14 @@
             }
             { tobSaveCode ToolButton menueditor
               Name = "tobSaveCode"
-              MoveScaled(50,0,5,5)
+              MoveScaled(48,0,5,5)
               Tag = "save"
               ToolTip = ("Save File")
               Picture = Picture["icon:/22/save"]
             }
           }
           { pnlPageImages Panel
-            MoveScaled(1,30,55,11)
+            MoveScaled(1,30,11,11)
             Visible = False
             Arrangement = Arrange.Column
             Spacing = True
