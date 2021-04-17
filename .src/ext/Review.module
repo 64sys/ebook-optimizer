@@ -1,0 +1,52 @@
+' Gambas module file
+
+'
+' base-rad
+' Rapid Application Development for Gambas
+'
+' Copyright (C) Martín Belmonte
+'
+' This program is free software; you can redistribute it and/or modify
+' it under the terms of the GNU General Public License as published by
+' the Free Software Foundation; either version 2 of the License, or
+' (at your option) any later version.
+'
+' This program is distributed in the hope that it will be useful,
+' but WITHOUT ANY WARRANTY; without even the implied warranty of
+' MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+' GNU General Public License for more details.
+'
+' You should have received a copy of the GNU General Public License
+' along with this program; if not, write to the Free Software
+' Foundation, Inc., 51 Franklin St, Fifth Floor,
+' Boston, MA  02110-1301  USA
+'
+Public Sub Main()
+
+  ' Dim cls As Class
+  Dim name As String
+
+  ' cls = String
+  '
+  ' For Each name In cls.Symbols
+  '   If name <> "" Then
+  '     Print name & " " & cls.Componen & " " & cls.Parent.Name
+  '   Endif
+  '   Select name
+  '     Case "Compare"
+  '
+  '     Case "InStr"
+  '       cls[name].Type
+  '   End Select
+  '
+  ' Next
+
+  Print String.Compare("a", "á")
+  Print String.Contains("gambas", "m")
+  Print String.ContainsAny("gambas", "gm")
+  Print String.ContainsAny("gambas", "GM")
+  Print String.Trim(" Esto tiene varios      espacios ")
+  Print String.Title(" Esto tiene varios      espacios ")
+  Print String.Fields(" Esto tiene varios      espacios ").Join(":")
+
+End
