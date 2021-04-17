@@ -570,7 +570,7 @@ End
 '   Dim metComm As String
 '
 '   '' strPath It is the root directory that is passed to the function, and from there it will look for the .project files
-'   stxFiles = fil.ScanFiles(strPath, ["module", "class"])
+'   stxFiles = File.ScanFiles(strPath, ["module", "class"])
 '   stxFiles.Sort
 '
 '   If stxFiles.Count > 0 Then

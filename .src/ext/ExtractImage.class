@@ -26,6 +26,7 @@
 
 Inherits Task
 
+Public mode As String
 Public filePDF As String
 Public dirOutput As String
 
@@ -35,17 +36,42 @@ Public Sub Main()
   Dim page As Integer
   Dim fileImage As String
   Dim imageRam As Image
+  Dim i As Integer
 
   If Exist(filePDF) Then
     documentPDF = New PdfDocument(filePDF)
 
     If Exist(dirOutput) Then
-      For page = 0 To documentPDF.Max
-        fileImage = dirOutput &/ Format(page, "0000") & ".png"
-        If Exist(fileImage) = False Then
-          bat.PdfPage2Image(filePDF, page, fileImage)
-        Endif
-      Next
+
+      Select mode
+        Case "thumb"
+          fileImage = dirOutput &/ Format(page, "0000") & ".jpeg"
+
+          For i = 0 To documentPDF.Max
+            If Exist(fileImage) = False Then
+              imageRam = documentPDF[i].Render(,,,,, 72)
+              imageRam.Save(fileImage, 25)
+            Endif
+          Next
+
+        Case "ocr"
+          For page = 0 To documentPDF.Max
+            fileImage = dirOutput &/ Format(page, "0000") & ".png"
+            If Exist(fileImage) = False Then
+              bat.PdfPage2Image(filePDF, page, fileImage)
+            Endif
+          Next
+
+        Case "book"
+          For page = 0 To documentPDF.Max
+            fileImage = dirOutput &/ Format(page, "0000") & ".jpeg"
+            If Exist(fileImage) = False Then
+              bat.PdfPage2Image(filePDF, page, fileImage)
+            Endif
+          Next
+
+      End Select
+
     Endif
   Endif
 

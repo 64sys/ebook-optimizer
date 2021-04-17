@@ -166,7 +166,7 @@ Public Sub Main()
   Endif
 
   thx.Clear
-  thx = fil.ScanFiles("./editor/", ["theme"])
+  thx = File.ScanFiles("./editor/", ["theme"])
 
   If thx.Count > 0 Then
     For i = 0 To thx.Max

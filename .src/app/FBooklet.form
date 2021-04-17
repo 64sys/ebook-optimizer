@@ -253,6 +253,7 @@
             Expand = True
             Border = False
             ScrollBar = Scroll.Vertical
+            Highlight = "HTML"
             Mode = "HTML"
             ShowCurrent = True
             ShowLineNumber = True
@@ -263,109 +264,6 @@
             MoveScaled(1,19,11,5)
             Tag = "editor"
             Arrangement = Arrange.Horizontal
-          }
-          { pnlTextEditorTools Panel
-            MoveScaled(1,24,11,5)
-            Visible = False
-            Background = Color.ButtonBackground
-            Tag = "editor"
-            Arrangement = Arrange.Horizontal
-            { tobReExtractText ToolButton
-              MoveScaled(0,0,5,5)
-              Tag = "textpage"
-              ToolTip = ("Extract text again")
-              Picture = Picture["icon:/22/refresh"]
-            }
-            { Spring2 Spring
-              MoveScaled(5,0,2,5)
-            }
-            { tobCreateParagraphImage ToolButton
-              MoveScaled(7,0,5,5)
-              ToolTip = ("Create a image copy for this paragrap")
-              Picture = Picture["icon:/22/camera"]
-            }
-            { tobPaste ToolButton menueditor
-              Name = "tobPaste"
-              MoveScaled(12,1,5,5)
-              Font = Font["Bold"]
-              Tag = "paste"
-              ToolTip = ("Paste")
-              Picture = Picture["icon:/22/paste"]
-            }
-            { tobH1 ToolButton menueditor
-              Name = "tobH1"
-              MoveScaled(15,0,5,5)
-              #Translate = False
-              Font = Font["Bold"]
-              Tag = "ctrl-1"
-              Text = "H1"
-            }
-            { tobH2 ToolButton menueditor
-              Name = "tobH2"
-              MoveScaled(19,0,5,5)
-              #Translate = False
-              Font = Font["Bold"]
-              Tag = "ctrl-2"
-              Text = "H2"
-            }
-            { tobH3 ToolButton menueditor
-              Name = "tobH3"
-              MoveScaled(23,0,5,5)
-              #Translate = False
-              Font = Font["Bold"]
-              Tag = "ctrl-3"
-              Text = "H3"
-            }
-            { tobH4 ToolButton menueditor
-              Name = "tobH4"
-              MoveScaled(27,0,5,5)
-              #Translate = False
-              Font = Font["Bold"]
-              Tag = "ctrl-4"
-              Text = "H4"
-            }
-            { tobH5 ToolButton menueditor
-              Name = "tobH5"
-              MoveScaled(31,0,5,5)
-              #Translate = False
-              Font = Font["Bold"]
-              Tag = "ctrl-5"
-              Text = "H5"
-            }
-            { tobH6 ToolButton menueditor
-              Name = "tobH6"
-              MoveScaled(35,0,5,5)
-              #Translate = False
-              Font = Font["Bold"]
-              Tag = "ctrl-6"
-              Text = "H6"
-            }
-            { tobP ToolButton menueditor
-              Name = "tobP"
-              MoveScaled(39,0,5,5)
-              #Translate = False
-              Font = Font["Bold"]
-              Tag = "ctrl-p"
-              Text = "P"
-            }
-            { tobTextWrap ToolButton menueditor
-              Name = "tobTextWrap"
-              MoveScaled(43,0,5,5)
-              Tag = "wrap"
-              ToolTip = ("Text wrap")
-              Picture = Picture["icon:/22/jump"]
-              Toggle = True
-            }
-            { Spring1 Spring
-              MoveScaled(47,0,2,5)
-            }
-            { tobSaveCode ToolButton menueditor
-              Name = "tobSaveCode"
-              MoveScaled(48,0,5,5)
-              Tag = "save"
-              ToolTip = ("Save File")
-              Picture = Picture["icon:/22/save"]
-            }
           }
           { pnlPageImages Panel
             MoveScaled(1,30,11,11)
@@ -448,7 +346,6 @@
   }
   { ActivityLogger #Timer
     #MoveScaled(133,70)
-    Enabled = True
     Delay = 60000
   }
 }

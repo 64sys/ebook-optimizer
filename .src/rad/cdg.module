@@ -95,7 +95,7 @@ Public Function ProjData(strPath As String) As Collection
   Dim bDesc As Boolean
 
   '' strPath It is the root directory that is passed to the function, and from there it will look for the .project files
-  stxFiles = fil.ScanFiles(strPath, ["module", "class"])
+  stxFiles = File.ScanFiles(strPath, ["module", "class"])
   stxFiles.Sort
 
   If stxFiles.Count > 0 Then
@@ -732,7 +732,7 @@ Public Function DokuProj(strPath As String) As String[]
   Dim intInit As Integer
 
   '' strPath It is the root directory that is passed to the function, and from there it will look for the .project files
-  stxFiles = fil.ScanFiles(strPath, [""])
+  stxFiles = File.ScanFiles(strPath, [""])
   stxFiles.Sort
 
   If stxFiles.Count > 0 Then
@@ -827,7 +827,7 @@ Public Function DokuHtml(strPath As String) As String
 
   stxInfo = sog.ProjInfo()
 
-  stxFiles = fil.ScanFiles(strPath, ["class", "module"])
+  stxFiles = File.ScanFiles(strPath, ["class", "module"])
   strKey = "Public Function "
   intPub = String.Len(strKey)
   ' Header
@@ -968,7 +968,7 @@ Public Function Dokuwiki(strPath As String) As String
   Dim i As Integer
   Dim intLine As Integer
 
-  stxFiles = fil.ScanFiles(strPath, ["class", "module"])
+  stxFiles = File.ScanFiles(strPath, ["class", "module"])
   strKey = "Public Function "
   intPub = String.Len(strKey)
 
