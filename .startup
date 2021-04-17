@@ -5,7 +5,7 @@ ebook-optimizer
 0.0.126
 
 gb.image
-gb.gui.qt
+gb.gui
 gb.form
 gb.db
 gb.db.form
@@ -16,7 +16,6 @@ gb.util
 gb.form.editor
 gb.settings
 gb.form.mdi
-gb.gui.qt.webkit
 gb.logging
 gb.markdown
 gb.pcre

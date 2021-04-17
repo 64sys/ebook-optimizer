@@ -1775,7 +1775,7 @@ Public Sub TextLabelLoad()
     sContent = "<html><head></head><body style=\"color: " & Main.sForeground & "; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;\">\n"
     sContent &= str & "\n"
     sContent &= "</body></html>"
-    WebView1.HTML = sContent
+    'WebView1.HTML = sContent
 
   Endif
 
@@ -2292,8 +2292,8 @@ Private Sub RefreshWebview()
         textFromFile = textRaw
         sContent &= TextLinksReplaced2(textFromFile)
         sContent &= "</body></html>"
-        WebView1.HTML = sContent
-        WebView1.Refresh
+        'WebView1.HTML = sContent
+        'WebView1.Refresh
 
       Case "md"
         textRaw = File.Load(currentTextFile)
@@ -2302,8 +2302,8 @@ Private Sub RefreshWebview()
         textFromFile = bat.Markdown2HTML(textRaw)
         sContent &= TextLinksReplaced2(textFromFile)
         sContent &= "</body></html>"
-        WebView1.HTML = sContent
-        WebView1.Refresh
+        'WebView1.HTML = sContent
+        'WebView1.Refresh
 
     End Select
 
@@ -2456,7 +2456,8 @@ Public Sub AplyTheme(Optional strPath As String)
       tmp = Replace(Split(r, "=")[1], "\"", "")
       tmp = Replace(tmp, "#", "&H")
       If InStr(tmp, ",") > 0 Then
-        vrt = [Val(Split(tmp, ",")[0]), Split(tmp, ",")[1]]
+        'vrt = [Val(Split(tmp, ",")[0]), Split(tmp, ",")[1]]
+        vrt = Val(Split(tmp, ",")[0])
       Else
         vrt = Val(tmp)
       Endif
@@ -2481,13 +2482,15 @@ Public Sub AplyTheme(Optional strPath As String)
     .Styles[Highlight.Comment].Color = cnx["Comment"]
     '.Styles[Highlight.Help].Color = cnx["Help"][0]
     .Styles[Highlight.Help].Color = cnx["Help"]
-    .Styles[Highlight.Preprocessor].Color = cnx["Preprocessor"][0]
+    '.Styles[Highlight.Preprocessor].Color = cnx["Preprocessor"][0]
+    .Styles[Highlight.Preprocessor].Color = cnx["Preprocessor"]
     .Styles[Highlight.Breakpoint].Color = cnx["Breakpoint"]
     .Styles[Highlight.Current].Color = cnx["Current"]
     .Styles[Highlight.Selection].Color = cnx["Selection"]
     .Styles[Highlight.Highlight].Color = cnx["Highlight"]
     .Styles[Highlight.CurrentLine].Color = cnx["CurrentLine"]
-    .Styles[Highlight.Error].Color = cnx["Error"][0]
+    '.Styles[Highlight.Error].Color = cnx["Error"][0]
+    .Styles[Highlight.Error].Color = cnx["Error"]
   End With
   'Endif
 

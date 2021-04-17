@@ -275,10 +275,6 @@
         { Separator2 Separator
           MoveScaled(67,11,0,4)
         }
-        { WebView1 WebView
-          MoveScaled(68,2,8,42)
-          Expand = True
-        }
       }
     }
     { pnlMetadata Panel
