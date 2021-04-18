@@ -73,6 +73,8 @@ Private strBefText As String        '' Texto inmediatamnete anterior a localizac
 Private strAftText As String        '' Texto inmediatamnete posterior a localizacion del
 Private strCopyText As String       '' Texto inmediatamnete posterior a localizacion del
 Private bolEdiWrap As Boolean       '' Bandera de indicación de ajuste de texto
+Private bolOverride As Boolean       '' Bandera de indicación de sobreescritura de texto
+
 ''  Temas del editor
 Public strEdiTheme As String        '' Tema alctual del TextEditor.
 
@@ -167,7 +169,8 @@ Public Sub Run() As Boolean
     iTime = 0
   Endif
   ActivitiIndication()
-  OverrideText.Value = True
+  'OverrideText.Value = True
+  bolOverride = True
 
   IconsLoad(pnlTools)
   IconsLoad(pnlEditor)
@@ -180,7 +183,12 @@ End
 
 Public Sub menuapp_Click()
 
-  Menuapp(Last.Tag)
+  Select Last.Tag
+    Case "overridetext"
+      bolOverride = Last.Value
+    Case Else
+      Menuapp(Last.Tag)
+  End Select
 
 End
 
@@ -528,8 +536,8 @@ Public Sub Menuapp(s As String, Optional sMod As String)
 
         Endif
 
-        flw.Add("packing", "flow")
-        Flow(flw)
+        'flw.Add("packing", "flow")
+        'Flow(flw)
 
       Case "bookzip" 'Packing
         'Esta parte es para crear el EPUB comprimiendo todo
@@ -829,7 +837,7 @@ Private Sub Pages2Text()
   ProgressBar1.Visible = True
   For i = 0 To xpdf.Max
     textFile = directoryTextBook &/ Format(i, "0000") & ".html"
-    If Exist(textFile) = False Or OverrideText.Value Then
+    If Exist(textFile) = False Or bolOverride = True Then
       textContent = vag.ArrangeParagraph(TexEx(i))
       File.Save(textFile, textContent)
     Endif
@@ -839,8 +847,6 @@ Private Sub Pages2Text()
     Wait 0.01
 
   Next
-  flw.Add("cooked", "flow")
-  Flow(flw)
   Label1.Text = ("Texto extraídos") & " (" & CStr(e) & ":" & CStr(xpdf.Count) & ")"
   ProgressBar1.Visible = False
 
@@ -1186,70 +1192,70 @@ End
 '
 ' End
 
-Private Sub Flow(c As Collection)
-
-  Dim ctr As Object
-
-  If c.Exist("flow") Then
-    Select c["flow"]
-        '------------------------------
-      Case "hold"
-        For Each ctr In pnlIcons.Children
-          If Object.Type(ctr) = "ToolButton" Then
-            Select ctr.Tag
-              Case "quit", "options", "help", "open", "directory", "scantailor"
-                ctr.Enabled = True
-              Case "import", "directory", "scantailor"
-                ctr.Enabled = True
-              Case "text", "image", "book"
-                ctr.Enabled = False
-            End Select
-          Endif
-        Next
-
-        pnlIconsPage.Enabled = False
-
-        '------------------------------
-      Case "raw"
-        For Each ctr In pnlIcons.Children
-          If Object.Type(ctr) = "ToolButton" Then
-            Select ctr.Tag
-              Case "import", "quit", "options", "help", "open", "directory", "scantailor"
-                ctr.Enabled = True
-              Case "book"
-                ctr.Enabled = False
-              Case "text", "image"
-                ctr.Enabled = True
-            End Select
-          Endif
-        Next
-        pnlIconsPage.Enabled = True
-        '------------------------------
-      Case "cooked"
-        For Each ctr In pnlIcons.Children
-          If Object.Type(ctr) = "ToolButton" Then
-            Select ctr.Tag
-              Case "text", "book", "import", "image", "quit", "options", "help", "open", "directory", "scantailor"
-                ctr.Enabled = True
-            End Select
-          Endif
-        Next
-        pnlIconsPage.Enabled = True
-        '------------------------------
-      Case "packing"
-        For Each ctr In pnlIcons.Children
-          If Object.Type(ctr) = "ToolButton" Then
-            Select ctr.Tag
-              Case "zip"
-                ctr.Enabled = True
-            End Select
-          Endif
-        Next
-        pnlIconsPage.Enabled = True
-    End Select
-  Endif
-
-End
+' Private Sub Flow(c As Collection)
+'
+'   Dim ctr As Object
+'
+'   If c.Exist("flow") Then
+'     Select c["flow"]
+'         '------------------------------
+'       Case "hold"
+'         For Each ctr In pnlIcons.Children
+'           If Object.Type(ctr) = "ToolButton" Then
+'             Select ctr.Tag
+'               Case "quit", "options", "help", "open", "directory", "scantailor"
+'                 ctr.Enabled = True
+'               Case "import", "directory", "scantailor"
+'                 ctr.Enabled = True
+'               Case "text", "image", "book"
+'                 ctr.Enabled = False
+'             End Select
+'           Endif
+'         Next
+'
+'         pnlIconsPage.Enabled = False
+'
+'         '------------------------------
+'       Case "raw"
+'         For Each ctr In pnlIcons.Children
+'           If Object.Type(ctr) = "ToolButton" Then
+'             Select ctr.Tag
+'               Case "import", "quit", "options", "help", "open", "directory", "scantailor"
+'                 ctr.Enabled = True
+'               Case "book"
+'                 ctr.Enabled = False
+'               Case "text", "image"
+'                 ctr.Enabled = True
+'             End Select
+'           Endif
+'         Next
+'         pnlIconsPage.Enabled = True
+'         '------------------------------
+'       Case "cooked"
+'         For Each ctr In pnlIcons.Children
+'           If Object.Type(ctr) = "ToolButton" Then
+'             Select ctr.Tag
+'               Case "text", "book", "import", "image", "quit", "options", "help", "open", "directory", "scantailor"
+'                 ctr.Enabled = True
+'             End Select
+'           Endif
+'         Next
+'         pnlIconsPage.Enabled = True
+'         '------------------------------
+'       Case "packing"
+'         For Each ctr In pnlIcons.Children
+'           If Object.Type(ctr) = "ToolButton" Then
+'             Select ctr.Tag
+'               Case "zip"
+'                 ctr.Enabled = True
+'             End Select
+'           Endif
+'         Next
+'         pnlIconsPage.Enabled = True
+'     End Select
+'   Endif
+'
+' End
 
 Public Sub AImage_DblClick()
 
@@ -1775,7 +1781,7 @@ Public Sub TextLabelLoad()
     sContent = "<html><head></head><body style=\"color: " & Main.sForeground & "; word-wrap: break-word; -webkit-nbsp-mode: space; -webkit-line-break: after-white-space;\">\n"
     sContent &= str & "\n"
     sContent &= "</body></html>"
-    'WebView1.HTML = sContent
+    WebView1.HTML = sContent
 
   Endif
 
@@ -2136,6 +2142,7 @@ Public Sub TreeView1_Select()
   Dim textFromFile As String
   Dim imageForOCR As String
   Dim tempControl As Object
+  Dim ctrl As Object
 
   If TreeView1.Item Then
     Select TreeView1.Item.ParentKey
@@ -2171,7 +2178,14 @@ Public Sub TreeView1_Select()
         AplyMode("pages")
         pageIndex = CInt(TreeView1.Key)
 
-        ValueBox1.Value = pageIndex
+        For Each ctrl In pnlTools.Children
+          If ctrl.tag = "goto" Then
+            ctrl.Value = pageIndex
+            Break
+          Endif
+        Next
+        '        ValueBox1.Value = pageIndex
+
         imageForOCR = directoryImagesOCR &/ Format(pageIndex, "0000") & ".png"
 
         currentTextFile = directoryTextBook &/ Format(pageIndex, "0000") & ".html"
@@ -2292,8 +2306,8 @@ Private Sub RefreshWebview()
         textFromFile = textRaw
         sContent &= TextLinksReplaced2(textFromFile)
         sContent &= "</body></html>"
-        'WebView1.HTML = sContent
-        'WebView1.Refresh
+        WebView1.HTML = sContent
+        WebView1.Refresh
 
       Case "md"
         textRaw = File.Load(currentTextFile)
@@ -2302,8 +2316,8 @@ Private Sub RefreshWebview()
         textFromFile = bat.Markdown2HTML(textRaw)
         sContent &= TextLinksReplaced2(textFromFile)
         sContent &= "</body></html>"
-        'WebView1.HTML = sContent
-        'WebView1.Refresh
+        WebView1.HTML = sContent
+        WebView1.Refresh
 
     End Select
 
@@ -2794,8 +2808,8 @@ Public Sub IconsLoad(iconsContainer As Container)
         vxo = New ValueBox(iconsContainer)
         With vxo
           .Name = listOrders.Key
-          .H = 35
           .W = 48
+          .H = 35
           .Alignment = Align.Center
           .Tag = sTag
           .Tooltip = Tip

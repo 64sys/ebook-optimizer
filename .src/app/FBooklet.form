@@ -129,51 +129,6 @@
   { Panel2 Panel
     MoveScaled(1,1,136,5)
     Arrangement = Arrange.Horizontal
-    { tobShowMenu ToolButton menuapp
-      Name = "tobShowMenu"
-      MoveScaled(0,0,5,5)
-      Visible = False
-      Tag = "showMenu"
-      ToolTip = ("Show tree")
-      Picture = Picture["icon:/22/menu"]
-      Toggle = True
-    }
-    { pnlIconsPage Panel
-      MoveScaled(5,0,44,5)
-      Visible = False
-      Arrangement = Arrange.Horizontal
-      { tobBack ToolButton menuapp
-        Name = "tobBack"
-        MoveScaled(1,0,5,5)
-        Tag = "back"
-        ToolTip = ("Previous page")
-        Picture = Picture["icon:/22/previous"]
-      }
-      { tobNext ToolButton menuapp
-        Name = "tobNext"
-        MoveScaled(16,0,7,5)
-        Tag = "next"
-        ToolTip = ("Next page")
-        Text = ("Next")
-        Picture = Picture["icon:/22/next"]
-      }
-      { ValueBox1 ValueBox menuapp
-        Name = "ValueBox1"
-        MoveScaled(27,1,6,4)
-        Tag = "goto"
-        Alignment = Align.Center
-      }
-      { OverrideText SwitchButton
-        MoveScaled(34,0,9,5)
-      }
-    }
-    { pnlIcons Panel
-      MoveScaled(51,0,8,5)
-      Visible = False
-      Tag = "file"
-      Expand = True
-      Arrangement = Arrange.Horizontal
-    }
     { pnlTools Panel
       MoveScaled(63,0,11,5)
       Background = Color.ButtonBackground
@@ -273,7 +228,11 @@
           }
         }
         { Separator2 Separator
-          MoveScaled(67,11,0,4)
+          MoveScaled(47,11,0,4)
+        }
+        { WebView1 WebView
+          MoveScaled(52,2,20,42)
+          Expand = True
         }
       }
     }
